@@ -17,13 +17,38 @@ export interface ItemInfo {
   category: ItemCategory
 }
 
-export const TOOL_INFO: Record<ToolKind, { name: string; icon: string; hint: string }> = {
-  hoe: { name: 'Cuốc', icon: '⛏️', hint: 'Mở luống trên cỏ' },
-  wateringCan: { name: 'Bình tưới', icon: '🪣', hint: 'Tưới cây, múc nước ở ao' },
-  seedBag: { name: 'Túi hạt', icon: '🌱', hint: 'Gieo hạt xuống luống trống' },
-  scythe: { name: 'Liềm', icon: '🌾', hint: 'Thu hoạch cây đã chín' },
-  axe: { name: 'Rìu', icon: '🪓', hint: 'Chặt cây, đập đá' },
-  ball: { name: 'Bóng bắt pet', icon: '🔴', hint: 'Ném vào pet hoang' },
+/**
+ * `needsTool` = phải đang cầm thứ này thì việc mới hiện ra.
+ *
+ * Túi hạt và liềm thì không: gieo với hái là việc của bàn tay, tới gần là làm
+ * được. Chúng vẫn nằm trong danh sách vì nhân vật rút chúng ra trong animation,
+ * và vì cầm sẵn trên tay cũng là một cách chơi.
+ */
+export const TOOL_INFO: Record<
+  ToolKind,
+  { name: string; icon: string; hint: string; needsTool: boolean }
+> = {
+  hoe: { name: 'Cuốc', icon: '⛏️', hint: 'Mở luống trên cỏ', needsTool: true },
+  wateringCan: {
+    name: 'Bình tưới',
+    icon: '🪣',
+    hint: 'Tưới cây, múc nước ở ao',
+    needsTool: true,
+  },
+  seedBag: {
+    name: 'Túi hạt',
+    icon: '🌱',
+    hint: 'Gieo hạt xuống luống trống',
+    needsTool: false,
+  },
+  scythe: {
+    name: 'Liềm',
+    icon: '🌾',
+    hint: 'Thu hoạch cây đã chín',
+    needsTool: false,
+  },
+  axe: { name: 'Rìu', icon: '🪓', hint: 'Chặt cây, đập đá', needsTool: true },
+  ball: { name: 'Bóng bắt pet', icon: '🔴', hint: 'Ném vào pet hoang', needsTool: true },
 }
 
 export const TOOL_IDS = Object.keys(TOOL_INFO) as ToolKind[]

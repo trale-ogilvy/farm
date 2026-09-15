@@ -22,26 +22,42 @@ Chơi được **hoàn toàn bằng bàn phím**. Đứng cạnh thứ gì làm 
 bong bóng `Ⓕ TRỒNG` hiện ngay trên nó; bấm `F` là nhân vật xoay mặt về phía đó và
 làm.
 
-Việc hiện ra là giao của hai thứ: **ô cần gì** và **tay đang cầm gì**.
+Việc chia làm hai loại, theo câu hỏi *tay không thì có làm được không?*
+
+**Cần đúng dụng cụ** — cầm sai thì coi như ô đó không có việc, không bong bóng,
+không highlight:
 
 | Trạng thái ô | Việc | Dụng cụ |
 |---|---|---|
-| Cỏ / đất chưa cuốc | CUỐC | cuốc (`1`) |
-| Cây đang lớn, đất khô | TƯỚI | bình nước (`2`) |
-| Mặt nước | MÚC NƯỚC | bình nước (`2`) |
-| Luống trống | TRỒNG | túi hạt (`3`) |
-| Cây đã chín | THU HOẠCH | liềm (`4`) |
-| Cây / bụi / đá | CHẶT | rìu (`5`) |
-| Pet hoang trong tầm | BẮT | bóng (`6`) |
-| Cây đang lớn và đất còn ẩm | *không hiện gì* | — |
+| Cỏ / đất chưa cuốc | CUỐC | cuốc |
+| Cây đang lớn, đất khô | TƯỚI | bình nước |
+| Mặt nước | MÚC NƯỚC | bình nước |
+| Cây / bụi / đá | CHẶT | rìu |
+| Pet hoang trong tầm | BẮT | bóng |
+
+**Chỉ cần tới gần** — cầm gì cũng làm được:
+
+| Trạng thái ô | Việc |
+|---|---|
+| Luống trống | TRỒNG |
+| Cây đã chín | THU HOẠCH |
+| Cây đang lớn và đất còn ẩm | *không hiện gì* |
+
+Ranh giới là bàn tay. Tay không thì không bổ được đất, không hạ được cây, không
+múc được nước, và không có bóng thì không ném; nhưng rắc hạt xuống luống và hái
+quả chín thì tay làm được — bắt chọn dụng cụ ở đó chỉ nhét thêm một bước vô
+nghĩa giữa "thấy luống trống" và "gieo".
+
+Lọc theo dụng cụ vẫn cần cho nhóm trên vì **cỏ phủ kín bản đồ**: nếu ô cỏ nào
+cũng tự mời CUỐC thì đi đâu cũng thấy bong bóng và nó hết tác dụng báo "chỗ này
+có việc". Nhóm dưới không gây nhiễu, vì luống trống và cây chín chỉ có ở chỗ
+người chơi tự tạo ra.
+
+Nhân vật vẫn rút đúng đồ nghề ra trong animation dù không phải chọn: gieo thì
+thấy túi hạt, thu hoạch thì thấy liềm, xong lại cất về thứ đang cầm.
 
 Bong bóng mờ đi khi đúng ngữ cảnh nhưng thiếu tài nguyên (hết hạt, hết nước);
 bấm `F` lúc đó sẽ nói rõ thiếu gì thay vì im lặng.
-
-**Cầm sai dụng cụ thì coi như không có việc** — không bong bóng, không highlight.
-Nếu mọi ô đều tự mời việc thì đi đâu cũng thấy bong bóng (cỏ phủ kín bản đồ) và
-bong bóng mất hết tác dụng báo hiệu "chỗ này có việc". Buộc chọn dụng cụ biến
-hotbar thành bộ lọc: cầm rìu thì cả bản đồ chỉ còn cây để chặt.
 
 | Phím | Tác dụng |
 |---|---|

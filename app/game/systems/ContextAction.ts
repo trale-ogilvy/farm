@@ -21,8 +21,11 @@ export interface ActionTarget {
   /** Chữ hiện trong bong bóng, ví dụ "TRỒNG". */
   label: string
   anim: ActionAnim
-  /** Dụng cụ đang cầm. Luôn khớp `player.state.tool` vì đó là điều kiện để
-   *  hành động này lọt vào danh sách. */
+  /**
+   * Dụng cụ dùng cho việc này. Với việc cần dụng cụ thì luôn khớp
+   * `player.state.tool`; với việc tay không (gieo, thu hoạch) thì đây chỉ là
+   * đạo cụ animation và có thể khác thứ đang cầm.
+   */
   tool: ToolKind
   /** Điểm neo bong bóng trong không gian thế giới. */
   x: number
@@ -96,6 +99,11 @@ const ANIMS: Record<ActionKind, ActionAnim> = {
   catch: 'throw',
 }
 
+/**
+ * Dụng cụ của từng việc. Với việc cần dụng cụ thì đây là ĐIỀU KIỆN; với việc
+ * chỉ cần tới gần thì nó chỉ là đạo cụ cho animation — nhân vật vẫn rút đúng
+ * thứ ra dùng rồi cất đi, dù người chơi không hề chọn nó ở hotbar.
+ */
 const TOOLS: Record<ActionKind, ToolKind> = {
   till: 'hoe',
   plant: 'seedBag',
@@ -107,15 +115,38 @@ const TOOLS: Record<ActionKind, ToolKind> = {
 }
 
 /**
+ * Hai loại việc, phân theo câu hỏi: không có dụng cụ thì có làm được không?
+ *
+ * CẦN DỤNG CỤ — mở luống, tưới, múc nước, chặt, ném bóng. Tay không thì không
+ * bổ được đất hay hạ được cây, và bóng thì phải có bóng mới ném. Bắt chọn dụng
+ * cụ ở đây còn là cách lọc: cỏ phủ kín bản đồ, nếu ô cỏ nào cũng tự mời CUỐC
+ * thì đi đâu cũng thấy bong bóng và nó hết tác dụng báo "chỗ này có việc".
+ *
+ * CHỈ CẦN TỚI GẦN — gieo hạt, thu hoạch. Đây là việc của bàn tay: rắc hạt
+ * xuống luống, hái quả chín. Bắt chọn dụng cụ trước chỉ thêm một bước vô nghĩa
+ * giữa "thấy luống trống" và "gieo". Hai việc này cũng không gây nhiễu, vì
+ * luống trống và cây chín chỉ có ở chỗ người chơi tự tạo ra.
+ */
+const NEEDS_TOOL: Record<ActionKind, boolean> = {
+  till: true,
+  water: true,
+  refill: true,
+  chop: true,
+  catch: true,
+  plant: false,
+  harvest: false,
+}
+
+/**
  * Chọn MỘT việc đáng làm nhất quanh người chơi.
  *
  * Nguyên tắc: mỗi ô chỉ có đúng một hành động hợp lý, suy ra từ trạng thái của
  * chính nó — đất chưa cuốc thì cuốc, luống trống thì gieo, cây khát thì tưới,
  * cây chín thì thu.
  *
- * Trên nguyên tắc đó còn một lớp lọc nữa: chỉ những việc làm được bằng DỤNG CỤ
- * ĐANG CẦM mới hiện ra (xem `TOOLS`). Bong bóng vì thế trả lời đúng một câu —
- * "cái đang cầm dùng được ở đây không" — thay vì liệt kê mọi thứ quanh chân.
+ * Trên nguyên tắc đó có thêm một lớp lọc, nhưng chỉ áp cho một nửa số việc:
+ * việc CẦN DỤNG CỤ thì phải đang cầm đúng thứ mới hiện, việc TAY KHÔNG thì tới
+ * gần là hiện (xem `NEEDS_TOOL`).
  */
 export function resolveAction(
   grid: Grid,
@@ -141,9 +172,9 @@ export function resolveAction(
     enabled: boolean,
     reason?: string,
   ) => {
-    // Cầm sai dụng cụ thì coi như không có việc: không bong bóng, không
-    // highlight. Đây là luật chung, không riêng cuốc.
-    if (TOOLS[kind] !== player.state.tool) return
+    // Việc cần dụng cụ mà cầm sai thì coi như không có việc: không bong bóng,
+    // không highlight. Việc tay không thì bỏ qua cửa này.
+    if (NEEDS_TOOL[kind] && TOOLS[kind] !== player.state.tool) return
 
     const dx = wx - px
     const dz = wz - pz
@@ -241,7 +272,8 @@ interface TileAction {
  * người chơi mong đợi nhất khi nhìn vào ô đó thì đặt trước.
  *
  * Hàm này KHÔNG xét dụng cụ — nó trả lời "ô này cần gì", còn "tay đang cầm gì"
- * do `consider` lọc. Tách ra để một ô luôn có đúng một ý nghĩa, bất kể hotbar.
+ * do `consider` lọc theo `NEEDS_TOOL`. Tách ra để một ô luôn có đúng một ý
+ * nghĩa, bất kể hotbar.
  */
 function tileAction(tile: Tile, player: Player, now: number): TileAction | null {
   const s = player.state

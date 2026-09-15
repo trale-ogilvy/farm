@@ -64,9 +64,13 @@ const detailLines = computed(() => {
   const item = selected.value
   if (!item) return []
   if (item.tool) {
+    const info = TOOL_INFO[item.tool]
     const slot = slotOf(item.tool)
     return [
-      TOOL_INFO[item.tool].hint,
+      info.hint,
+      info.needsTool
+        ? 'Phải đang cầm thì việc mới hiện ra'
+        : 'Không cần cầm — tới gần là làm được',
       slot >= 0 ? `Đang ở ô nhanh số ${slot + 1}` : 'Chưa nằm ở ô nhanh nào',
     ]
   }
