@@ -21,7 +21,8 @@ export interface ActionTarget {
   /** Chữ hiện trong bong bóng, ví dụ "TRỒNG". */
   label: string
   anim: ActionAnim
-  /** Dụng cụ cầm lúc thực hiện — chỉ để animation đọc đúng, không đổi hotbar. */
+  /** Dụng cụ đang cầm. Luôn khớp `player.state.tool` vì đó là điều kiện để
+   *  hành động này lọt vào danh sách. */
   tool: ToolKind
   /** Điểm neo bong bóng trong không gian thế giới. */
   x: number
@@ -110,8 +111,11 @@ const TOOLS: Record<ActionKind, ToolKind> = {
  *
  * Nguyên tắc: mỗi ô chỉ có đúng một hành động hợp lý, suy ra từ trạng thái của
  * chính nó — đất chưa cuốc thì cuốc, luống trống thì gieo, cây khát thì tưới,
- * cây chín thì thu. Nhờ vậy người chơi không phải chọn dụng cụ; một phím F làm
- * đúng thứ mà mắt họ đang nhìn thấy.
+ * cây chín thì thu.
+ *
+ * Trên nguyên tắc đó còn một lớp lọc nữa: chỉ những việc làm được bằng DỤNG CỤ
+ * ĐANG CẦM mới hiện ra (xem `TOOLS`). Bong bóng vì thế trả lời đúng một câu —
+ * "cái đang cầm dùng được ở đây không" — thay vì liệt kê mọi thứ quanh chân.
  */
 export function resolveAction(
   grid: Grid,
@@ -137,6 +141,10 @@ export function resolveAction(
     enabled: boolean,
     reason?: string,
   ) => {
+    // Cầm sai dụng cụ thì coi như không có việc: không bong bóng, không
+    // highlight. Đây là luật chung, không riêng cuốc.
+    if (TOOLS[kind] !== player.state.tool) return
+
     const dx = wx - px
     const dz = wz - pz
     const dist = Math.hypot(dx, dz)
@@ -231,6 +239,9 @@ interface TileAction {
 /**
  * Luật ngữ cảnh cho MỘT ô. Thứ tự các nhánh chính là thứ tự ưu tiên: việc nào
  * người chơi mong đợi nhất khi nhìn vào ô đó thì đặt trước.
+ *
+ * Hàm này KHÔNG xét dụng cụ — nó trả lời "ô này cần gì", còn "tay đang cầm gì"
+ * do `consider` lọc. Tách ra để một ô luôn có đúng một ý nghĩa, bất kể hotbar.
  */
 function tileAction(tile: Tile, player: Player, now: number): TileAction | null {
   const s = player.state
@@ -279,13 +290,6 @@ function tileAction(tile: Tile, player: Player, now: number): TileAction | null 
   }
 
   if (tile.ground === 'grass' || tile.ground === 'soil') {
-    // Cuốc là việc DUY NHẤT phải chọn dụng cụ trước.
-    //
-    // Cỏ phủ kín bản đồ, nên nếu để nó hiện theo ngữ cảnh như mọi việc khác thì
-    // đi đâu cũng thấy bong bóng CUỐC — bong bóng mất hết tác dụng báo hiệu
-    // "chỗ này có việc". Bắt cầm cuốc là cách nói rõ ý định: mở đất mới là quyết
-    // định của người chơi, không phải việc tiện tay.
-    if (s.tool !== 'hoe') return null
     return { kind: 'till', lift: 0.45, enabled: s.energy >= 3, reason: 'Hết sức rồi, đi ngủ đi' }
   }
 

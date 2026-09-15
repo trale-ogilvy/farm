@@ -20,26 +20,28 @@ Không cần cấu hình gì thêm. Không có Firebase thì game tự lưu vào
 
 Chơi được **hoàn toàn bằng bàn phím**. Đứng cạnh thứ gì làm được việc thì một
 bong bóng `Ⓕ TRỒNG` hiện ngay trên nó; bấm `F` là nhân vật xoay mặt về phía đó và
-làm. Ô quyết định việc, không phải người chơi chọn dụng cụ:
+làm.
 
-| Trạng thái ô | Việc |
-|---|---|
-| Cỏ / đất chưa cuốc | CUỐC — *chỉ khi đang cầm cuốc (phím `1`)* |
-| Luống trống | TRỒNG |
-| Cây đang lớn, đất khô | TƯỚI |
-| Cây đã chín | THU HOẠCH |
-| Cây / bụi / đá | CHẶT |
-| Mặt nước | MÚC NƯỚC |
-| Pet hoang trong tầm | BẮT |
-| Cây đang lớn và đất còn ẩm | *không hiện gì* |
+Việc hiện ra là giao của hai thứ: **ô cần gì** và **tay đang cầm gì**.
+
+| Trạng thái ô | Việc | Dụng cụ |
+|---|---|---|
+| Cỏ / đất chưa cuốc | CUỐC | cuốc (`1`) |
+| Cây đang lớn, đất khô | TƯỚI | bình nước (`2`) |
+| Mặt nước | MÚC NƯỚC | bình nước (`2`) |
+| Luống trống | TRỒNG | túi hạt (`3`) |
+| Cây đã chín | THU HOẠCH | liềm (`4`) |
+| Cây / bụi / đá | CHẶT | rìu (`5`) |
+| Pet hoang trong tầm | BẮT | bóng (`6`) |
+| Cây đang lớn và đất còn ẩm | *không hiện gì* | — |
 
 Bong bóng mờ đi khi đúng ngữ cảnh nhưng thiếu tài nguyên (hết hạt, hết nước);
 bấm `F` lúc đó sẽ nói rõ thiếu gì thay vì im lặng.
 
-**Cuốc là việc duy nhất phải chọn dụng cụ trước.** Cỏ phủ kín bản đồ, nên nếu để
-nó hiện theo ngữ cảnh như mọi việc khác thì đi đâu cũng thấy bong bóng CUỐC và
-bong bóng mất hết tác dụng báo hiệu "chỗ này có việc". Bắt cầm cuốc là cách nói
-rõ ý định: mở đất mới là quyết định của người chơi, không phải việc tiện tay.
+**Cầm sai dụng cụ thì coi như không có việc** — không bong bóng, không highlight.
+Nếu mọi ô đều tự mời việc thì đi đâu cũng thấy bong bóng (cỏ phủ kín bản đồ) và
+bong bóng mất hết tác dụng báo hiệu "chỗ này có việc". Buộc chọn dụng cụ biến
+hotbar thành bộ lọc: cầm rìu thì cả bản đồ chỉ còn cây để chặt.
 
 | Phím | Tác dụng |
 |---|---|
