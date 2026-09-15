@@ -10,7 +10,7 @@ export interface BuildingDef {
    * mỗi giây đứng xây trừ đi 10; luống đất 20 nghĩa là hai giây.
    */
   workload: number
-  /** Dỡ được bằng dụng cụ ✖ không. Nhà chính chẳng hạn thì không. */
+  /** Dỡ được bằng dụng cụ 🗑️ không. Nhà chính chẳng hạn thì không. */
   removable: boolean
 }
 

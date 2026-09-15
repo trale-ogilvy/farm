@@ -1,13 +1,14 @@
 import * as THREE from 'three'
 import type { Grid } from '../world/Grid'
 import type { PropKind } from '../types'
-import { cropDef } from '../data/crops'
+import { CROPS, cropDef } from '../data/crops'
 import { TerrainMesh } from './TerrainMesh'
 import { CameraRig } from './CameraRig'
 import { Sky } from './Sky'
 import { GrassField } from './GrassField'
 import { buildPropGeometry, buildSiteGeometry } from './models/props'
 import { buildCropGeometry } from './models/crops'
+import { preloadCropModel } from './models/cropModels'
 import { toonVertexColors } from './Materials'
 import { cropTransform, plotTransform, propTransform, siteTransform } from './instanceTransforms'
 import { GLOW, TargetHighlight, type HighlightTone } from './TargetHighlight'
@@ -133,6 +134,7 @@ export class SceneManager {
 
     this.rebuildProps()
     this.rebuildSites()
+    this.preloadCropModels()
 
     this.resizeObserver = new ResizeObserver(() => this.resize())
     this.resizeObserver.observe(canvas.parentElement ?? canvas)
@@ -264,6 +266,29 @@ export class SceneManager {
     this.highlight.show(geo, this.dummy.matrix, tone)
   }
 
+  /**
+   * Tải model glTF của các cây có model. Trong lúc chờ, cây vẫn vẽ bằng khối
+   * dự phòng; model về thì bỏ lô cũ của cây đó để lần dựng sau lấy geometry mới.
+   */
+  private preloadCropModels(): void {
+    for (const def of Object.values(CROPS)) {
+      if (!def.model) continue
+      preloadCropModel(def)
+        .then(() => {
+          for (const [key, group] of this.crops) {
+            if (!key.startsWith(`${def.id}:`)) continue
+            this.scene.remove(group.mesh, group.outline)
+            group.mesh.geometry.dispose()
+            group.mesh.dispose()
+            group.outline.dispose()
+            this.crops.delete(key)
+          }
+          this.rebuildCrops()
+        })
+        .catch((err) => console.error(`Không tải được model cây ${def.id}:`, err))
+    }
+  }
+
   /** Gọi lại khi địa hình hoặc prop thay đổi. */
   refreshWorld(now: number): void {
     this.terrain.rebuild(now)
@@ -369,6 +394,9 @@ export class SceneManager {
 
     // Viền dùng chung instanceMatrix nên tự khớp; chỉ phải nhớ đồng bộ `count`.
     const outline = makeInstancedOutline(mesh, thinOutline ? 0.016 : 0.045)
+    // Model quá dày đặc (hàng vạn tam giác) thì vỏ viền phình ra đè lên chính
+    // nó thành một mảng đen; geometry tự khai báo để bỏ viền.
+    if (geo.userData.noOutline) outline.visible = false
     this.scene.add(outline, mesh)
 
     group = { mesh, outline, capacity }

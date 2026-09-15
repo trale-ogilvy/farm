@@ -3,21 +3,17 @@ import { useGameStore } from '~/composables/useGameStore'
 import { CROPS, CROP_IDS } from '~/game/data/crops'
 import { cropIcon } from '~/game/data/items'
 
-const { engine, seedPicker, seedCounts, emptyPlots } = useGameStore()
+const { engine, hud, seedPicker, seedCounts, emptyPlots } = useGameStore()
 
 /**
- * Chọn hạt là gieo luôn cả ruộng, không phải "đổi loại hạt đang cầm". Vì vậy
- * bảng đóng ngay sau khi chọn: việc đã xong, giữ nó mở chỉ tổ che mất cảnh.
+ * Túi hạt mở cho ĐÚNG ô vừa bấm: chọn một loại là gieo xuống ô đó rồi túi
+ * đóng lại. Mỗi ô một lần mở — người chơi quyết định ruộng trông thế nào.
  */
-function sow(id: string) {
+function choose(id: string) {
   if (!seedCounts.value[id]) return
-  engine.value?.sowAll(id)
-  seedPicker.value = false
+  engine.value?.selectSeed(id)
 }
 
-function tint(hex: number): string {
-  return `#${hex.toString(16).padStart(6, '0')}`
-}
 </script>
 
 <template>
@@ -28,7 +24,7 @@ function tint(hex: number): string {
     >
       <header class="flex items-center justify-between border-b border-ink/12 px-3 py-2">
         <div class="leading-tight">
-          <h2 class="text-xs font-bold uppercase tracking-widest">Gieo hạt</h2>
+          <h2 class="text-xs font-bold uppercase tracking-widest">Túi hạt</h2>
           <p class="text-[11px] opacity-60">
             <span class="tabular-nums">{{ emptyPlots }}</span> luống trống
           </p>
@@ -36,7 +32,7 @@ function tint(hex: number): string {
         <button
           class="text-lg leading-none opacity-60 hover:opacity-100"
           title="Đóng (Esc)"
-          @click="seedPicker = false"
+          @click="engine?.cancelSeedPicker()"
         >
           ✕
         </button>
@@ -46,9 +42,12 @@ function tint(hex: number): string {
         <li v-for="id in CROP_IDS" :key="id">
           <button
             class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition"
-            :class="seedCounts[id] ? 'hover:bg-sage/30' : 'cursor-not-allowed opacity-35'"
+            :class="[
+              seedCounts[id] ? 'hover:bg-sage/30' : 'cursor-not-allowed opacity-35',
+              hud.selectedSeed === id && seedCounts[id] ? 'bg-clay/25 ring-1 ring-clay' : '',
+            ]"
             :disabled="!seedCounts[id]"
-            @click="sow(id)"
+            @click="choose(id)"
           >
             <span class="text-lg leading-none">{{ cropIcon(id) }}</span>
             <span class="min-w-0 flex-1 leading-tight">
@@ -57,16 +56,12 @@ function tint(hex: number): string {
                 còn {{ seedCounts[id] ?? 0 }} hạt
               </span>
             </span>
-            <span
-              class="h-3 w-3 shrink-0 rounded-full"
-              :style="{ background: tint(CROPS[id]!.colorFruit) }"
-            />
           </button>
         </li>
       </ul>
 
       <p class="border-t border-ink/12 px-3 py-1.5 text-[11px] opacity-60">
-        Chọn một loại là gieo kín ruộng, trái sang phải.
+        Chọn loại để gieo xuống ô vừa bấm.
       </p>
     </aside>
   </Transition>

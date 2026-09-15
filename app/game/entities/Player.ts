@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { PlayerState, ToolKind } from '../types'
+import type { PlayerState, HeldProp, ToolKind } from '../types'
 import type { Grid } from '../world/Grid'
 import type { Input } from '../core/Input'
 import { animateWalk, buildPlayerRig, type Rig } from '../render/models/character'
@@ -24,9 +24,9 @@ export class Player {
   /** Trong lúc này, hướng nhìn không bị việc di chuyển ghi đè. */
   private faceLock = 0
   /** Dụng cụ hiện TẠM theo hành động; không đụng tới lựa chọn ở hotbar. */
-  private actionTool: ToolKind | null = null
+  private actionTool: HeldProp | null = null
   private toolMesh: THREE.Object3D | null = null
-  private currentToolMeshKind: ToolKind | null = null
+  private currentToolMeshKind: HeldProp | null = null
 
   constructor(state: PlayerState) {
     this.state = state
@@ -46,11 +46,10 @@ export class Player {
   }
 
   /**
-   * Chạy animation cho một hành động. `tool` cho phép cầm tạm một dụng cụ khác
-   * trong lúc diễn mà không đổi hotbar; hiện mọi việc đều dùng đúng thứ đang
-   * cầm nên thường bỏ trống.
+   * Chạy animation cho một hành động. `tool` là đạo cụ cầm tạm trong lúc diễn
+   * (bình tưới, liềm...) — không đổi hotbar, diễn xong là buông.
    */
-  playAction(anim: ActionAnim, tool?: ToolKind): void {
+  playAction(anim: ActionAnim, tool?: HeldProp): void {
     this.action = { anim, t: 0, duration: Player.DURATION[anim] }
     // Khoá hướng ngắn hơn animation: đủ để cú ra đòn không quay lưng vào mục
     // tiêu, nhưng không giữ lâu tới mức người chơi bấm phím mà thấy đơ.
@@ -274,7 +273,7 @@ function shortestAngle(from: number, to: number): number {
 }
 
 /** Dụng cụ cầm tay, dựng bằng vài khối để nhìn vào là biết đang cầm gì. */
-function buildToolMesh(tool: ToolKind | null): THREE.Object3D | null {
+function buildToolMesh(tool: HeldProp | null): THREE.Object3D | null {
   if (!tool) return null
   const group = new THREE.Group()
   const handle = () => {

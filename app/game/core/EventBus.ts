@@ -15,11 +15,11 @@ export interface GameEvents {
   'ui:open': 'none' | 'pets' | 'shop' | 'pokedex' | 'backpack' | 'build'
   /** Đổi loại công trình đang đặt (null = thôi đặt). */
   'build:changed': BuildingKind | null
+  /** Mở / đóng túi hạt — mở khi bấm vào luống trống, đóng khi chọn xong. */
+  'ui:seedPicker': boolean
   /** Hỏi người chơi có chắc dỡ công trình ở ô này không. */
   'ui:confirmRemove': { x: number; z: number; kind: BuildingKind; hasCrop: boolean }
-  /** Mở bảng chọn hạt — chỉ bắn khi người chơi thực sự định gieo xuống luống. */
-  'ui:seedPicker': void
-  /** Esc: lớp UI tự quyết đóng cái gì trước (bảng chọn hạt trước ba lô). */
+  /** Esc: lớp UI tự quyết đóng cái gì trước (bảng nhỏ trước bảng lớn). */
   'ui:escape': void
 }
 

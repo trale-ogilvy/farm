@@ -40,7 +40,7 @@ function onDrop(index: number, ev: DragEvent) {
   hoverSlot.value = -1
   dragSlot.value = -1
   if (pinned(index)) {
-    pushToast('Ô ✖ là dụng cụ dỡ bỏ, cố định', 'bad')
+    pushToast('Ô 🗑️ là dụng cụ dỡ bỏ, cố định', 'bad')
     return
   }
   const id = ev.dataTransfer?.getData('text/plain') ?? ''
@@ -62,7 +62,7 @@ function clear(index: number) {
 </script>
 
 <template>
-  <!-- Cột dọc bên trái, ngay trên avatar. Ô cuối là ✖ dỡ bỏ, luôn ở đó. -->
+  <!-- Cột dọc bên trái, ngay trên avatar. Ô cuối là 🗑️ dỡ bỏ, luôn ở đó. -->
   <div class="panel absolute bottom-[6.5rem] left-4 flex flex-col gap-1 p-1.5">
     <button
       v-for="i in QUICK_SLOTS"

@@ -18,35 +18,38 @@ Không cần cấu hình gì thêm. Không có Firebase thì game tự lưu vào
 
 ## Điều khiển
 
-Hành động **bằng chuột, theo hai bước**: chọn dụng cụ ở dãy ô nhanh (bấm vào ô
-hoặc phím `1`–`6`), rồi bấm chuột trái vào thứ cần làm. Rê chuột qua là thấy
-ngay có làm được không:
+Việc đồng áng làm **bằng một cú bấm chuột** vào ô: rê chuột qua là ô sáng lên
+kèm tên việc, bấm là làm. Ô nào đang cần mình thì có **biểu tượng nổi** trên
+đó — 💧 cây khát, liềm cây chín — nhìn ruộng là biết chỗ nào cần tới; bấm vào
+biểu tượng hay bấm vào ô đều được.
 
-- **Sáng vàng** — dụng cụ đang cầm khớp với ô đó và nhân vật với tới. Bấm là làm.
+- **Sáng vàng** — ô có việc và nhân vật với tới. Bấm là làm.
 - **Sáng đỏ** — đúng thứ đó, nhưng ngoài tầm với (2.6 ô, bóng thì 3.2). Đi lại
-  gần thì tự chuyển vàng, chuột không cần nhúc nhích.
-- **Không sáng** — ô đó không có việc cho dụng cụ đang cầm. Bấm không có gì xảy
-  ra.
+  gần thì tự chuyển vàng, chuột không cần nhúc nhích. Biểu tượng ngoài tầm
+  cũng mờ đi.
+- **Không sáng** — ô đó không có việc. Bấm không có gì xảy ra.
 
-Mỗi ô chỉ có đúng một việc, suy ra từ trạng thái của chính nó; dụng cụ là cách
-người chơi nói mình định làm gì:
+Mỗi ô chỉ có đúng một việc, suy ra từ trạng thái của chính nó:
 
-| Trạng thái ô | Việc | Dụng cụ |
+| Trạng thái ô | Việc | Cần cầm |
 |---|---|---|
-| Luống trống | TRỒNG | túi hạt |
-| Cây đang lớn, đất khô | TƯỚI | bình tưới |
-| Cây đã chín | THU HOẠCH | liềm |
+| Luống trống | TRỒNG — mở túi hạt, chọn loại là gieo xuống ô đó | — |
+| Cây đang lớn, đất khô | TƯỚI (💧 nổi trên ô) | — |
+| Cây đã chín | THU HOẠCH (liềm nổi trên ô) | — |
 | Cây / bụi / đá | CHẶT | rìu |
 | Pet hoang | BẮT | bóng |
-| Luống hoặc bãi đang xây | DỠ BỎ | ✖ (ô cuối) |
+| Luống hoặc bãi đang xây | DỠ BỎ | 🗑️ (ô cuối) |
 | Cây đang lớn và đất còn ẩm | *không có việc* | — |
 
-Dụng cụ là điều kiện cho **mọi** việc, kể cả gieo và thu hoạch. Cầm rìu mà bấm
-vào cây chín thì không thành thu hoạch — nếu cho phép thì highlight không còn
-nói được "bấm vào sẽ xảy ra gì", vì cùng một cú bấm có thể ra hai việc.
+Chỉ ba việc cần cầm dụng cụ (phím `1`–`4` hoặc bấm ô nhanh), và đó là những
+việc mà cùng một ô có thể hiểu hai cách: cầm 🗑️ thì luống trống là "thứ để dỡ"
+chứ không phải "chỗ để gieo", cầm bóng thì con trỏ nhắm pet chứ không nhắm
+đất. Rìu chỉ *thêm* việc chặt, không che việc của đất — cầm rìu vẫn tưới và
+thu được. Không có bình tưới, túi hạt hay liềm trong hotbar; nhân vật tự rút
+đúng đạo cụ ra khi diễn.
 
 Không có cuốc: **luống đất chỉ đến từ xây dựng** (xem bên dưới). Ô cuối của cột
-dụng cụ là **✖ dỡ bỏ**, cố định — không kéo đi, không thả đè, không gỡ. Cầm nó
+dụng cụ là **🗑️ dỡ bỏ**, cố định — không kéo đi, không thả đè, không gỡ. Cầm nó
 rồi rê qua luống hay bãi đang xây dở là sáng lên; bấm thì hỏi lại trước khi dỡ,
 vì cây trên luống và công sức đã xây không lấy lại được. Chỉ công trình xây từ
 bảng xây dựng mới dỡ được (`removable` trong `data/buildings.ts`); nhà chính thì
@@ -67,7 +70,7 @@ một loại chi phí duy nhất, dễ đọc hơn hai thanh phải để mắt 
 | `Q` / `E` | Xoay camera bằng bàn phím |
 | Cuộn chuột | Kéo camera xa / gần |
 | `Shift` | Chạy |
-| `1`–`6` | Cầm dụng cụ ở cột ô nhanh; bấm lại để buông ra |
+| `1`–`4` | Cầm dụng cụ ở cột ô nhanh; bấm lại để buông ra |
 | `F` | Xây công trình đã đặt, khi đứng cạnh nó |
 | `B` | Bảng xây dựng |
 | `I` | Ba lô |
@@ -79,10 +82,10 @@ Camera hạ thấp để ngắm cảnh, nâng cao (tới 72°) khi cần nhìn r
 ## Ba lô và cột ô nhanh
 
 Góc dưới trái là avatar nhân vật, ngay trên nó là
-**cột sáu ô dụng cụ nhanh** ứng với phím `1`–`6` — cột dọc không tranh chỗ với
+**cột bốn ô dụng cụ nhanh** ứng với phím `1`–`4` — cột dọc không tranh chỗ với
 bong bóng hành động ở giữa khung hình. Bấm ô để cầm, bấm lại ô đang chọn để
-**buông ra tay không** (không cầm gì thì không ô nào sáng lên khi rê chuột). Kéo
-ô này thả vào ô kia để đổi chỗ. Ô 6 luôn là ✖ dỡ bỏ.
+**buông ra tay không** (tay không vẫn gieo / tưới / thu được). Kéo ô này thả
+vào ô kia để đổi chỗ. Ô 4 luôn là 🗑️ dỡ bỏ.
 Bấm avatar hoặc phím `I` để mở ba lô, chia tab *Tất cả / Dụng cụ / Hạt giống /
 Nông sản / Vật liệu*.
 
@@ -136,20 +139,18 @@ Cơ chế này dùng chung cho mọi công trình về sau, nên ghi rõ ở đ�
   `finishBuild`; phần đặt, hiện bong bóng, đếm tiến độ, lưu/khôi phục không phải
   viết lại.
 
-Ô có bãi thì chỉ ✖ tác động được (dụng cụ khác rê qua không sáng), nên không
+Ô có bãi thì chỉ 🗑️ tác động được (dụng cụ khác rê qua không sáng), nên không
 có chuyện tưới hay gieo đè lên bãi đang xây dở.
 
-## Gieo hạt: chọn một lần, gieo cả ruộng
+## Gieo hạt: mỗi cú bấm một ô
 
-Cầm túi hạt bấm vào luống trống thì **mở bảng chọn hạt** ở góc dưới phải,
-không phải gieo một ô. Chọn một loại là gieo kín mọi luống trống, trái sang
-phải rồi trên xuống dưới, cho tới khi hết luống hoặc hết hạt. Hết luống trống
-thì bảng không mở nữa.
+Bấm vào luống trống là **túi hạt** mở ở góc dưới phải, liệt kê các loại hạt
+đang có; chọn một loại là gieo xuống đúng ô vừa bấm rồi túi đóng lại. Esc hay
+✕ thì đóng mà không gieo. Mỗi ô một lần mở — muốn xen canh thì chọn khác đi
+ở ô kế.
 
-Một luống hai chục ô mà bắt bấm hai chục lần thì phần lặp lại chiếm hết chỗ
-của phần thú vị. Việc gieo hàng loạt vẫn đi qua `FarmActions.perform` từng ô,
-nên mọi luật (đủ hạt, ô hợp lệ) chỉ nằm ở một chỗ và gieo cả ruộng
-không thể lệch khỏi gieo một ô.
+Gieo vẫn đi qua `FarmActions.perform` như mọi việc khác, nên luật đủ hạt / ô
+hợp lệ chỉ nằm ở một chỗ.
 
 Vòng lặp chơi: **xây luống → gieo hạt → tưới → thu hoạch → bán → mua hạt tốt hơn.**
 Cây khô vẫn lớn nhưng chậm 3 lần, nên tưới là việc đáng làm chứ không bắt buộc.

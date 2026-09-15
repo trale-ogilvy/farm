@@ -25,8 +25,8 @@ watch(open, (v) => {
 })
 
 const ROWS = [
-  ['Chuột trái', 'Dùng dụng cụ đang cầm lên thứ dưới con trỏ'],
-  ['1 – 6', 'Cầm dụng cụ ở cột ô nhanh — bấm lại để buông ra'],
+  ['Chuột trái', 'Làm việc ở ô dưới con trỏ (gieo / tưới / thu), hoặc dùng dụng cụ đang cầm'],
+  ['1 – 4', 'Cầm dụng cụ ở cột ô nhanh — bấm lại để buông ra'],
   ['F', 'Xây công trình đã đặt khi đứng cạnh nó'],
   ['WASD / ←↑→↓', 'Di chuyển theo hướng camera'],
   ['Giữ chuột phải', 'Xoay camera quanh nhân vật'],
@@ -40,13 +40,13 @@ const ROWS = [
 ]
 
 const FLOW = [
-  ['🖱️', 'Chọn dụng cụ trước, rồi bấm vào thứ cần làm — rê chuột qua là nó sáng lên'],
+  ['🖱️', 'Rê chuột lên ô là nó sáng lên kèm tên việc; bấm là làm. Chỉ chặt, ném bóng, dỡ bỏ mới cần cầm dụng cụ'],
   ['🟡', 'Sáng vàng: bấm được. Sáng đỏ: đúng thứ đó nhưng xa quá, lại gần hơn'],
-  ['🌾', 'Liềm lên cây chín, rìu lên cây / đá, bình nước lên cây khô'],
-  ['✖', 'Ô cuối là dụng cụ dỡ bỏ: bấm vào luống hoặc bãi đang xây để dỡ (có hỏi lại)'],
+  ['🗑️', 'Ô cuối là dụng cụ dỡ bỏ: bấm vào luống hoặc bãi đang xây để dỡ (có hỏi lại)'],
   ['🔨', 'Bấm B, chọn Luống đất, đặt vào vòng tròn quanh nhà, tới gần bấm F để xây'],
-  ['🌱', 'Cầm túi hạt bấm vào luống trống — chọn một loại là gieo kín ruộng'],
-  ['🪣', 'Bình tưới không bao giờ cạn — cây khô lớn chậm 3 lần'],
+  ['🌱', 'Bấm vào luống trống là mở túi hạt — chọn loại là gieo xuống ô đó'],
+  ['💧', 'Cây khát hiện giọt nước, cây chín hiện liềm — bấm vào biểu tượng (hoặc ô) là làm'],
+  ['🪣', 'Tưới không tốn gì — nhưng cây khô lớn chậm 3 lần'],
   ['🔴', 'Cầm bóng bấm vào pet hoang trong tầm để bắt'],
 ]
 </script>

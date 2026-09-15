@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useGameStore } from '~/composables/useGameStore'
 import { CROPS, CROP_IDS } from '~/game/data/crops'
+import { cropIcon } from '~/game/data/items'
 
 const { engine, hud, panel, harvestCount } = useGameStore()
 
@@ -37,10 +38,7 @@ function buy(id: string, qty: number) {
           :key="id"
           class="mb-1.5 flex items-center gap-2 inset-card px-3 py-2"
         >
-          <span
-            class="h-4 w-4 shrink-0 rounded-full"
-            :style="{ background: `#${CROPS[id]!.colorFruit.toString(16).padStart(6, '0')}` }"
-          />
+          <span class="w-6 shrink-0 text-center text-lg leading-none">{{ cropIcon(id) }}</span>
           <div class="min-w-0 flex-1">
             <div class="truncate text-sm">{{ CROPS[id]!.name }}</div>
             <div class="text-[10px] opacity-55">

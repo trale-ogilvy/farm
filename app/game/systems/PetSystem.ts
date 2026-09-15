@@ -353,12 +353,7 @@ export class PetSystem {
         const def = cropDef(tile.crop.typeId)
         if (!isHarvestable(def, tile.crop)) return false
         addItem(player, def.id, 1)
-        if (def.regrow > 0) {
-          tile.crop.growth *= 0.6
-          tile.crop.stage = Math.max(1, tile.crop.stage - 1)
-        } else {
-          tile.crop = null
-        }
+        tile.crop = null
         this.bus.emit('player:changed', undefined)
         break
       }

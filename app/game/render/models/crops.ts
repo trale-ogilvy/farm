@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { CropDef } from '../../types'
 import { mergeSimple, paint } from '../TerrainMesh'
+import { cropModelGeometry } from './cropModels'
 
 /**
  * Dựng geometry cho một loại cây ở một giai đoạn. Kết quả được cache theo
@@ -9,6 +10,13 @@ import { mergeSimple, paint } from '../TerrainMesh'
 export function buildCropGeometry(def: CropDef, stage: number): THREE.BufferGeometry {
   const t = def.stages > 1 ? stage / (def.stages - 1) : 1
   const mature = stage >= def.stages - 1
+
+  // Cây có model: dùng model khi đã tải xong, không thì tạm dựng bằng khối và
+  // SceneManager sẽ dựng lại sau khi model về.
+  if (def.model && stage > 0) {
+    const geo = cropModelGeometry(def, stage)
+    if (geo) return geo
+  }
 
   switch (def.shape) {
     case 'stalk':

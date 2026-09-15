@@ -1,7 +1,7 @@
 import type { EventBus } from '../core/EventBus'
 import type { Grid } from '../world/Grid'
 import type { Player } from '../entities/Player'
-import type { Tile, ToolKind } from '../types'
+import type { Tile } from '../types'
 import { cropDef, isHarvestable } from '../data/crops'
 import { WET_DURATION } from './CropSystem'
 
@@ -10,8 +10,11 @@ export interface ActionResult {
   reason?: string
 }
 
+/** Việc làm được lên một ô đất. */
+export type FarmWork = 'plant' | 'water' | 'harvest' | 'chop'
+
 /**
- * Toàn bộ luật "dùng dụng cụ X lên ô Y". Tách riêng khỏi Player để sau này pet
+ * Toàn bộ luật "làm việc X lên ô Y". Tách riêng khỏi Player để sau này pet
  * (và người chơi khác khi có multiplayer) dùng lại đúng cùng bộ luật.
  */
 export class FarmActions {
@@ -20,21 +23,19 @@ export class FarmActions {
     private bus: EventBus,
   ) {}
 
-  perform(tool: ToolKind, x: number, z: number, player: Player): ActionResult {
+  perform(work: FarmWork, x: number, z: number, player: Player): ActionResult {
     const tile = this.grid.at(x, z)
     if (!tile) return fail('Ngoài bản đồ')
 
-    switch (tool) {
-      case 'wateringCan':
+    switch (work) {
+      case 'water':
         return this.water(tile, player)
-      case 'seedBag':
+      case 'plant':
         return this.plant(tile, player)
-      case 'scythe':
+      case 'harvest':
         return this.harvest(tile, player)
-      case 'axe':
+      case 'chop':
         return this.chop(tile, player)
-      default:
-        return fail('Dụng cụ này không dùng được ở đây')
     }
   }
 
@@ -77,13 +78,8 @@ export class FarmActions {
 
 
     addItem(player, def.id, 1)
-    if (def.regrow > 0) {
-      // Cây ra quả tiếp: lùi tiến độ về 60% thay vì xoá cây.
-      tile.crop.growth *= 0.6
-      tile.crop.stage = Math.max(1, tile.crop.stage - 1)
-    } else {
-      tile.crop = null
-    }
+    // Thu là hết: ô trống, muốn nữa thì gieo lại. Không có "ra quả tiếp".
+    tile.crop = null
     this.touch(tile)
     this.bus.emit('player:changed', undefined)
     this.bus.emit('toast', { text: `+1 ${def.name}`, kind: 'good' })

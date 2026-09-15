@@ -37,7 +37,7 @@ const hud = reactive({
   tool: null as ToolKind | null,
   work: 10,
   quickSlots: [] as Array<ToolKind | null>,
-  selectedSeed: 'turnip',
+  selectedSeed: 'carrot',
   inventory: [] as InventoryItem[],
 })
 
@@ -46,8 +46,6 @@ const clockText = ref('06:00')
 const day = ref(1)
 const isNight = ref(false)
 const panel = ref<Panel>('none')
-/** Bảng chọn hạt nằm ngoài `panel`: nó nhỏ, ở góc, và mở chồng lên ba lô được. */
-const seedPicker = ref(false)
 /** Số luống trống — quyết định bảng chọn hạt còn cho chọn hay không. */
 const emptyPlots = ref(0)
 /** Loại công trình đang đặt bằng chuột; null = không ở chế độ đặt. */
@@ -57,6 +55,11 @@ const removeConfirm = ref<{ x: number; z: number; kind: BuildingKind; hasCrop: b
 const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
 const backend = ref<'firebase' | 'local'>('local')
 const ready = ref(false)
+/**
+ * Túi hạt mở khi bấm vào luống trống, đóng khi chọn xong. Nằm ngoài `panel`
+ * vì nhỏ, ở góc, và mở chồng lên ba lô được.
+ */
+const seedPicker = ref(false)
 const toasts = ref<Toast[]>([])
 
 let toastId = 0
@@ -74,6 +77,8 @@ export function useGameStore() {
 
   function attach(next: Engine) {
     engineRef.value = next
+    // Lúc dev, mở engine ra console để chọc thử (window.__engine).
+    if (import.meta.dev) (window as unknown as { __engine?: Engine }).__engine = next
     syncPlayer()
     syncPets()
     syncClock()
@@ -85,8 +90,8 @@ export function useGameStore() {
     next.bus.on('ui:open', (p) => {
       panel.value = panel.value === p ? 'none' : p
     })
-    next.bus.on('ui:seedPicker', () => {
-      seedPicker.value = true
+    next.bus.on('ui:seedPicker', (open) => {
+      seedPicker.value = open
     })
     next.bus.on('build:changed', (kind) => {
       buildMode.value = kind
@@ -97,7 +102,7 @@ export function useGameStore() {
     // Esc đóng từ trong ra ngoài: bảng chọn hạt trước, rồi mới tới bảng lớn.
     next.bus.on('ui:escape', () => {
       if (removeConfirm.value) removeConfirm.value = null
-      else if (seedPicker.value) seedPicker.value = false
+      else if (seedPicker.value) engineRef.value?.cancelSeedPicker()
       else if (panel.value !== 'none') panel.value = 'none'
     })
     next.bus.on('toast', ({ text, kind }) => pushToast(text, kind ?? 'info'))
@@ -109,8 +114,8 @@ export function useGameStore() {
     ready.value = false
     pets.value = []
     toasts.value = []
-    seedPicker.value = false
     panel.value = 'none'
+    seedPicker.value = false
     buildMode.value = null
     removeConfirm.value = null
   }
@@ -125,8 +130,6 @@ export function useGameStore() {
     hud.quickSlots = [...s.quickSlots]
     hud.selectedSeed = s.selectedSeed
     emptyPlots.value = e.emptyPlots()
-    // Gieo hết ruộng thì bảng chọn hạt không còn việc gì để làm.
-    if (emptyPlots.value === 0) seedPicker.value = false
     // Chép mảng để Vue thấy tham chiếu mới; danh sách túi đồ rất ngắn.
     hud.inventory = s.inventory.filter((i) => i.count > 0).map((i) => ({ ...i }))
   }

@@ -1,7 +1,7 @@
 import type { Grid } from '../world/Grid'
 import type { Player } from '../entities/Player'
 import type { PetSystem } from './PetSystem'
-import type { Tile, ToolKind } from '../types'
+import type { HeldProp, Tile, ToolKind } from '../types'
 import { cropDef, isHarvestable } from '../data/crops'
 
 export type ActionKind =
@@ -28,8 +28,8 @@ export interface ActionTarget {
   /** Chữ hiện trong bong bóng, ví dụ "TRỒNG". */
   label: string
   anim: ActionAnim
-  /** Dụng cụ dùng cho việc này — luôn trùng với thứ đang cầm. */
-  tool: ToolKind
+  /** Đạo cụ nhân vật cầm lúc diễn: dụng cụ thật hoặc bình tưới / túi hạt / liềm. */
+  prop: HeldProp
   /** Điểm neo bong bóng trong không gian thế giới. */
   x: number
   y: number
@@ -77,15 +77,25 @@ const ANIMS: Record<ActionKind, ActionAnim> = {
 }
 
 /**
- * Dụng cụ của từng việc. Đây là ĐIỀU KIỆN: cầm sai thì ô đó coi như không có
- * việc — không highlight, không bong bóng, bấm vào không có gì xảy ra.
+ * Dụng cụ CẦN cho từng việc; null = tay không làm được.
  *
- * Mọi việc đều đi qua cửa này, kể cả gieo và thu hoạch. Lối chơi bằng chuột
- * là "chọn dụng cụ rồi chỉ vào thứ cần làm": dụng cụ đang cầm chính là cách
- * người chơi nói mình định làm gì, nên nó phải nhất quán — không thể cầm cuốc
- * mà bấm vào cây chín lại thành thu hoạch.
+ * Việc đồng áng (gieo, tưới, thu) không cần dụng cụ: ô đất chỉ có đúng một
+ * việc, và ô nào đang cần gì thì có biểu tượng nổi trên ô đó — bấm vào là làm.
+ * Chỉ những việc mà cùng một ô có thể hiểu hai cách mới cần cầm đúng thứ:
+ * rìu để chặt, bóng để ném, 🗑️ để dỡ. Cầm rìu vẫn tưới/thu được — rìu chỉ
+ * THÊM việc chặt chứ không che việc của đất.
  */
-const TOOLS: Record<ActionKind, ToolKind> = {
+const TOOLS: Record<ActionKind, ToolKind | null> = {
+  remove: 'remove',
+  plant: null,
+  water: null,
+  harvest: null,
+  chop: 'axe',
+  catch: 'ball',
+}
+
+/** Đạo cụ nhân vật rút ra khi diễn việc đó. */
+const PROPS: Record<ActionKind, HeldProp> = {
   remove: 'remove',
   plant: 'seedBag',
   water: 'wateringCan',
@@ -98,9 +108,8 @@ const TOOLS: Record<ActionKind, ToolKind> = {
  * Việc ở chỗ con trỏ đang chỉ, với dụng cụ đang cầm.
  *
  * Nguyên tắc: mỗi ô chỉ có đúng một hành động hợp lý, suy ra từ trạng thái của
- * chính nó — đất chưa cuốc thì cuốc, luống trống thì gieo, cây khát thì tưới,
- * cây chín thì thu. Con trỏ chọn Ô, dụng cụ lọc VIỆC; hai thứ khớp nhau thì
- * có mục tiêu, không thì null.
+ * chính nó — luống trống thì gieo, cây khát thì tưới, cây chín thì thu, cây
+ * cối thì chặt. Con trỏ chọn Ô; dụng cụ chỉ lọc những việc cần dụng cụ.
  *
  * Khoảng cách KHÔNG lọc ở đây mà chỉ ghi vào `inRange`: mục tiêu ngoài tầm
  * vẫn cần được vẽ ra (màu đỏ) để người chơi hiểu vì sao bấm không ăn.
@@ -117,8 +126,6 @@ export function resolveAction(
   const px = player.state.x
   const pz = player.state.z
   const tool = player.state.tool
-  // Tay không thì không có việc gì để chỉ vào: mọi việc đều cần dụng cụ.
-  if (!tool) return null
 
   // Bóng nhắm vào PET chứ không vào ô: con trỏ ở gần con nào thì là con đó.
   if (tool === 'ball') {
@@ -129,7 +136,7 @@ export function resolveAction(
       kind: 'catch',
       label: LABELS.catch,
       anim: ANIMS.catch,
-      tool: 'ball',
+      prop: 'ball',
       x: pet.x,
       y: grid.groundY(pet.x, pet.z) + 1.05,
       z: pet.z,
@@ -154,7 +161,7 @@ export function resolveAction(
       kind: 'remove',
       label: LABELS.remove,
       anim: ANIMS.remove,
-      tool,
+      prop: 'remove',
       x: tile.x,
       y: grid.heights.tileHeight(tile.x, tile.z) + 0.6,
       z: tile.z,
@@ -165,23 +172,49 @@ export function resolveAction(
     }
   }
 
+  return resolveTile(grid, player, now, tile)
+}
+
+/**
+ * Việc của MỘT ô cụ thể, đã lọc theo dụng cụ đang cầm. Dùng cho cả con trỏ
+ * lẫn biểu tượng nổi trên ô (bấm vào giọt nước / cái liềm) — hai lối vào,
+ * một luật.
+ */
+export function resolveTile(grid: Grid, player: Player, now: number, tile: Tile): ActionTarget | null {
   const found = tileAction(tile, player, now)
-  if (!found || TOOLS[found.kind] !== tool) return null
+  if (!found) return null
+  const need = TOOLS[found.kind]
+  if (need && player.state.tool !== need) return null
 
   return {
     kind: found.kind,
     label: LABELS[found.kind],
     anim: ANIMS[found.kind],
-    tool,
+    prop: PROPS[found.kind],
     x: tile.x,
     y: grid.heights.tileHeight(tile.x, tile.z) + found.lift,
     z: tile.z,
     tile: { x: tile.x, z: tile.z },
     petUid: null,
-    inRange: Math.hypot(tile.x - px, tile.z - pz) <= REACH,
+    inRange: Math.hypot(tile.x - player.state.x, tile.z - player.state.z) <= REACH,
     enabled: found.enabled,
     reason: found.reason,
   }
+}
+
+/** Biểu tượng nổi trên ô: ô đang cần tưới hay đã thu được. */
+export type TileNeed = 'water' | 'harvest'
+
+/**
+ * Ô này có việc gì đáng nhắc không — không xét dụng cụ, không xét khoảng cách.
+ * Đây là nguồn cho lớp biểu tượng nổi: cây khát hiện giọt nước, cây chín hiện
+ * liềm, để người chơi nhìn ruộng là biết chỗ nào cần mình.
+ */
+export function tileNeed(tile: Tile, now: number): TileNeed | null {
+  if (!tile.crop || tile.site) return null
+  const def = cropDef(tile.crop.typeId)
+  if (isHarvestable(def, tile.crop)) return 'harvest'
+  return tile.wetUntil <= now ? 'water' : null
 }
 
 interface TileAction {
@@ -227,8 +260,8 @@ function tileAction(tile: Tile, player: Player, now: number): TileAction | null 
   }
 
   if (tile.tilled) {
-    // Xét CÒN HẠT NÀO KHÔNG, không xét loại đang chọn: bấm vào đây chỉ mở bảng
-    // chọn hạt, mà bảng đó cho chọn bất kỳ loại nào trong túi.
+    // Xét CÒN HẠT NÀO KHÔNG, không xét loại đang chọn: bấm vào đây mở túi hạt,
+    // mà túi cho chọn bất kỳ loại nào còn.
     const hasSeed = s.inventory.some((i) => i.id.startsWith('seed:') && i.count > 0)
     return {
       kind: 'plant',

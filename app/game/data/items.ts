@@ -17,14 +17,11 @@ export interface ItemInfo {
   category: ItemCategory
 }
 
-/** Mọi việc đều cần cầm đúng dụng cụ; `hint` nói dụng cụ đó bấm vào cái gì. */
+/** `hint` nói dụng cụ đó bấm vào cái gì. */
 export const TOOL_INFO: Record<ToolKind, { name: string; icon: string; hint: string }> = {
-  wateringCan: { name: 'Bình tưới', icon: '🪣', hint: 'Tưới cây trên luống' },
-  seedBag: { name: 'Túi hạt', icon: '🌱', hint: 'Gieo hạt xuống luống trống' },
-  scythe: { name: 'Liềm', icon: '🌾', hint: 'Thu hoạch cây đã chín' },
   axe: { name: 'Rìu', icon: '🪓', hint: 'Chặt cây, đập đá' },
   ball: { name: 'Bóng bắt pet', icon: '🔴', hint: 'Ném vào pet hoang' },
-  remove: { name: 'Dỡ bỏ', icon: '✖', hint: 'Dỡ công trình đã xây hoặc đang xây dở' },
+  remove: { name: 'Dỡ bỏ', icon: '🗑️', hint: 'Dỡ công trình đã xây hoặc đang xây dở' },
 }
 
 /** Dụng cụ dỡ bỏ: cố định ở ô nhanh cuối, không nằm trong ba lô, không kéo được. */
@@ -34,17 +31,22 @@ export const REMOVE_TOOL: ToolKind = 'remove'
 export const TOOL_IDS = (Object.keys(TOOL_INFO) as ToolKind[]).filter((id) => id !== REMOVE_TOOL)
 
 const CROP_ICONS: Record<string, string> = {
-  turnip: '🥬',
+  mushroom: '🍄',
   carrot: '🥕',
-  tomato: '🍅',
-  corn: '🌽',
-  pumpkin: '🎃',
+  wheat: '🌾',
+  broccoli: '🥦',
+  cauliflower: '🌼',
+  sunflower: '🌻',
 }
 
 const MATERIALS: Record<string, { name: string; icon: string }> = {
   wood: { name: 'Gỗ', icon: '🪵' },
   fiber: { name: 'Sợi', icon: '🌿' },
   stone: { name: 'Đá', icon: '🪨' },
+}
+
+export function isMaterial(id: string): boolean {
+  return id in MATERIALS
 }
 
 /** Có phải dụng cụ đặt được vào ô nhanh không (dụng cụ dỡ bỏ thì không). */

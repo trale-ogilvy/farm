@@ -24,6 +24,10 @@ function apply(p: BuildPrompt) {
     lastVisible = p.visible
     node.style.opacity = p.visible ? '1' : '0'
     node.style.visibility = p.visible ? 'visible' : 'hidden'
+    // Xây xong là bãi biến mất ngay trong frame đó, tiến độ cuối engine ghi
+    // được luôn hụt một chút (0.97…). Bong bóng mờ dần trong 120ms nên kéo
+    // thanh lên kín ống trước khi mờ, không thì lần nào cũng "chưa đầy đã xong".
+    if (!p.visible && lastBuilding && barEl.value) barEl.value.style.width = '100%'
   }
   if (!p.visible) return
 
@@ -68,7 +72,8 @@ onBeforeUnmount(() => engine.value?.setBuildSink(null))
     </div>
     <!-- Thanh tiến độ chỉ hiện khi đang xây; rộng bằng bong bóng. -->
     <div class="bar h-1.5 overflow-hidden rounded-full bg-ink/12">
-      <div ref="barEl" class="h-full rounded-full bg-sage transition-[width] duration-100" style="width: 0%" />
+      <!-- Không transition: engine ghi width mỗi frame, mượt sẵn; transition chỉ làm thanh trễ sau tiến độ thật. -->
+      <div ref="barEl" class="h-full rounded-full bg-sage" style="width: 0%" />
     </div>
   </div>
 </template>

@@ -6,21 +6,21 @@ import { FarmActions } from '../systems/FarmActions'
 import { CropSystem } from '../systems/CropSystem'
 import { PetSystem } from '../systems/PetSystem'
 import { CatchSystem } from '../systems/CatchSystem'
-import { REACH, resolveAction, type ActionTarget } from '../systems/ContextAction'
-import { CROP_IDS, cropDef } from '../data/crops'
+import { REACH, resolveAction, resolveTile, tileNeed, type ActionTarget, type TileNeed } from '../systems/ContextAction'
+import { CROPS, CROP_IDS, cropDef } from '../data/crops'
 import { buildingDef } from '../data/buildings'
-import { REMOVE_TOOL } from '../data/items'
+import { REMOVE_TOOL, isMaterial } from '../data/items'
 import { EventBus } from './EventBus'
 import { GameClock, DAY_LENGTH_MS } from './Time'
 import { Input } from './Input'
 
 /** Số ô dụng cụ nhanh, cố định để khớp với dãy phím 1–6. */
-export const QUICK_SLOTS = 6
+export const QUICK_SLOTS = 4
 
 /** Ô nhanh cuối cùng cố định là dụng cụ dỡ bỏ. */
 const REMOVE_SLOT = QUICK_SLOTS - 1
 
-const TOOL_ORDER: ToolKind[] = ['wateringCan', 'seedBag', 'scythe', 'axe', 'ball', REMOVE_TOOL]
+const TOOL_ORDER: ToolKind[] = ['axe', 'ball', REMOVE_TOOL]
 
 function defaultQuickSlots(): Array<ToolKind | null> {
   const slots: Array<ToolKind | null> = TOOL_ORDER.filter((t) => t !== REMOVE_TOOL).slice(0, REMOVE_SLOT)
@@ -42,6 +42,34 @@ const KEY_TURN_SPEED = 7
 
 /** Sức làm việc mặc định: khối lượng công việc hoàn thành mỗi giây đứng xây. */
 const DEFAULT_WORK = 10
+
+/**
+ * Biểu tượng nổi trên một ô đang cần người chơi: giọt nước (cây khát) hoặc
+ * liềm (cây chín). Lớp UI vẽ thành nút bấm được; bấm vào là làm việc đó.
+ * Toạ độ pixel cập nhật mỗi frame như bong bóng hành động.
+ */
+export interface TileMarker {
+  x: number
+  z: number
+  need: TileNeed
+  sx: number
+  sy: number
+  visible: boolean
+  inRange: boolean
+}
+
+/**
+ * Icon treo ngay trên ngọn cây: mầm thì sát đất, cây chín thì cao. Neo cố định
+ * một độ cao thì icon của mầm lơ lửng cách cây cả gang tay, nhìn không ra là
+ * của ô nào.
+ */
+function markerLift(grid: Grid, m: TileMarker): number {
+  const crop = grid.at(m.x, m.z)?.crop
+  if (!crop) return 0.4
+  const def = cropDef(crop.typeId)
+  const t = def.stages > 1 ? crop.stage / (def.stages - 1) : 1
+  return 0.35 + t * 0.55
+}
 
 /** Dữ liệu bong bóng hành động gửi cho lớp UI mỗi frame. */
 export interface ActionPrompt {
@@ -82,11 +110,11 @@ function defaultPlayerState(x: number, z: number): PlayerState {
     tool: null,
     work: DEFAULT_WORK,
     quickSlots: defaultQuickSlots(),
-    selectedSeed: 'turnip',
+    selectedSeed: 'carrot',
     coins: 120,
     inventory: [
-      { id: 'seed:turnip', count: 15 },
-      { id: 'seed:carrot', count: 8 },
+      { id: 'seed:carrot', count: 12 },
+      { id: 'seed:mushroom', count: 8 },
       { id: 'ball', count: 12 },
     ],
   }
@@ -116,6 +144,10 @@ export class Engine {
   private lastDay = 1
   private target: ActionTarget | null = null
   private promptSink: ((p: ActionPrompt) => void) | null = null
+  private markerSink: ((m: TileMarker[]) => void) | null = null
+  private markers: TileMarker[] = []
+  /** Lần quét ruộng gần nhất (ms thực); đất khô dần theo giờ nên phải quét lại định kỳ. */
+  private markersScannedAt = -Infinity
   private prompt: ActionPrompt = { visible: false, label: '', enabled: true, far: false, x: 0, y: 0 }
   private buildSink: ((p: BuildPrompt) => void) | null = null
   private buildPrompt: BuildPrompt = { visible: false, label: '', progress: null, x: 0, y: 0 }
@@ -235,6 +267,7 @@ export class Engine {
     if (this.worldDirty || this.grid.dirty.size > 0) {
       this.scene.refreshWorld(now)
       this.worldDirty = false
+      this.markersScannedAt = -Infinity
     }
 
     this.scene.followTarget(
@@ -244,9 +277,60 @@ export class Engine {
       dt,
     )
     this.scene.updateLighting(this.clock.daylight, this.clock.hour, this.elapsedSeconds)
+    this.updateMarkers(now)
     this.scene.render()
 
     this.input.endFrame()
+  }
+
+  // ---------------------------------------------------------- biểu tượng ô
+
+  setMarkerSink(fn: ((m: TileMarker[]) => void) | null): void {
+    this.markerSink = fn
+    fn?.(this.markers)
+  }
+
+  /**
+   * Quét lại danh sách ô cần nhắc khi thế giới đổi hoặc mỗi nửa giây (đất khô
+   * theo giờ, không ai đánh dấu dirty), rồi chiếu ra màn hình mỗi frame.
+   */
+  private updateMarkers(now: number): void {
+    const wall = performance.now()
+    if (wall - this.markersScannedAt > 500) {
+      this.markersScannedAt = wall
+      const list: TileMarker[] = []
+      for (const tile of this.grid.tiles) {
+        const need = tileNeed(tile, now)
+        if (need) list.push({ x: tile.x, z: tile.z, need, sx: 0, sy: 0, visible: false, inRange: false })
+      }
+      this.markers = list
+    }
+
+    const px = this.player.state.x
+    const pz = this.player.state.z
+    const hovered = this.target?.tile ?? null
+    for (const m of this.markers) {
+      const s = this.scene.projectToScreen(m.x, this.grid.heights.tileHeight(m.x, m.z) + markerLift(this.grid, m), m.z)
+      m.sx = s.x
+      m.sy = s.y
+      // Ô đang rê chuột đã có bong bóng tên việc neo cùng chỗ; hai thứ chồng
+      // lên nhau thì icon bị che mà bong bóng cũng khó đọc.
+      m.visible = s.visible && !(hovered && hovered.x === m.x && hovered.z === m.z)
+      m.inRange = Math.hypot(m.x - px, m.z - pz) <= REACH
+    }
+    this.markerSink?.(this.markers)
+  }
+
+  /**
+   * Bấm vào biểu tượng nổi trên một ô — cùng luật với bấm vào ô đó bằng chuột,
+   * nhưng nhắm chính xác vì biểu tượng là phần tử HTML, không phải điểm trên đất.
+   */
+  actOnTile(x: number, z: number): void {
+    const tile = this.grid.at(x, z)
+    if (!tile || this.buildMode) return
+    const target = resolveTile(this.grid, this.player, this.clock.elapsed, tile)
+    if (!target) return
+    this.performTarget(target)
   }
 
   /** Sang ngày mới: pet nghỉ đủ. */
@@ -459,7 +543,8 @@ export class Engine {
       p.visible = s.visible
       p.x = s.x
       p.y = s.y
-      p.label = this.constructing ? `Đang xây ${def.name}` : `Xây ${def.name}`
+      // Chỉ "Xây": bãi cọc đã cho biết đó là gì, nhắc tên chỉ làm bong bóng dài ra.
+      p.label = this.constructing ? 'Đang xây' : 'Xây'
       p.progress = this.constructing ? Math.min(1, site.done / def.workload) : null
     }
     this.buildSink?.(p)
@@ -500,9 +585,11 @@ export class Engine {
    * không cần thêm lời nhắc.
    */
   private useTool(): void {
-    const target = this.target
-    if (!target) return
+    if (this.target) this.performTarget(this.target)
+  }
 
+  /** Làm việc lên một mục tiêu đã giải ra — từ con trỏ hoặc từ biểu tượng ô. */
+  private performTarget(target: ActionTarget): void {
     // Xoay mặt về mục tiêu TRƯỚC, kể cả khi hành động bất thành — nhân vật quay
     // lưng vào thứ mình vừa bấm là thứ đọc ra ngay là sai.
     this.player.faceTowards(target.x, target.z)
@@ -519,11 +606,12 @@ export class Engine {
       return
     }
 
-    // Gieo hạt KHÔNG làm từng ô một: bấm vào luống trống là mở bảng chọn
-    // hạt, chọn xong thì cả ruộng được gieo. Một luống 20 ô mà bắt bấm 20
-    // lần thì phần lặp lại chiếm hết chỗ của phần thú vị.
+    // Bấm vào luống trống là mở túi hạt cho ô đó; chọn loại là gieo xuống đúng
+    // ô ấy. Mỗi cú bấm một ô — người chơi quyết định ruộng trông thế nào.
     if (target.kind === 'plant') {
-      this.requestSeedPicker()
+      if (!target.tile) return
+      this.pendingPlot = { x: target.tile.x, z: target.tile.z }
+      this.bus.emit('ui:seedPicker', true)
       return
     }
 
@@ -545,9 +633,9 @@ export class Engine {
     }
 
     if (!target.tile) return
-    const result = this.actions.perform(target.tool, target.tile.x, target.tile.z, this.player)
+    const result = this.actions.perform(target.kind, target.tile.x, target.tile.z, this.player)
     if (result.ok) {
-      this.player.playAction(target.anim, target.tool)
+      this.player.playAction(target.anim, target.prop)
       this.worldDirty = true
     } else if (result.reason) {
       this.bus.emit('toast', { text: result.reason, kind: 'bad' })
@@ -631,9 +719,20 @@ export class Engine {
     this.bus.emit('player:changed', undefined)
   }
 
+  /** Chọn hạt trong túi: gieo vào ô đang chờ rồi đóng túi. */
   selectSeed(id: string): void {
     this.player.state.selectedSeed = id
-    this.bus.emit('player:changed', undefined)
+    const plot = this.pendingPlot
+    this.pendingPlot = null
+    if (plot && this.seedCount(id) > 0) this.sowAt(id, plot.x, plot.z)
+    else this.bus.emit('player:changed', undefined)
+    this.bus.emit('ui:seedPicker', false)
+  }
+
+  /** Đóng túi hạt mà không gieo (Esc, nút ✕). */
+  cancelSeedPicker(): void {
+    this.pendingPlot = null
+    this.bus.emit('ui:seedPicker', false)
   }
 
   // ------------------------------------------------------------ ô dụng cụ nhanh
@@ -677,7 +776,10 @@ export class Engine {
 
   // ---------------------------------------------------------------- gieo hạt
 
-  /** Số luống đã cuốc mà chưa có cây — điều kiện để bảng chọn hạt còn ý nghĩa. */
+  /** Ô luống vừa bấm — túi hạt đang mở cho ô này, chọn xong là gieo vào đây. */
+  private pendingPlot: { x: number; z: number } | null = null
+
+  /** Số luống đã cuốc mà chưa có cây. */
   emptyPlots(): number {
     let n = 0
     for (const t of this.grid.tiles) {
@@ -686,59 +788,25 @@ export class Engine {
     return n
   }
 
-  /** Mở bảng chọn hạt, hoặc nói rõ vì sao không mở được. */
-  requestSeedPicker(): void {
-    if (this.emptyPlots() === 0) {
-      this.bus.emit('toast', { text: 'Không còn luống trống — xây thêm luống đi (B)', kind: 'bad' })
-      return
-    }
-    this.bus.emit('ui:seedPicker', undefined)
+  seedCount(cropId: string): number {
+    return this.player.state.inventory.find((i) => i.id === `seed:${cropId}`)?.count ?? 0
   }
 
   /**
-   * Gieo loại hạt đã chọn xuống MỌI luống trống, trái sang phải rồi trên xuống
-   * dưới — đúng thứ tự mắt người đọc một mảnh ruộng.
-   *
-   * Vẫn đi qua `FarmActions.perform` từng ô thay vì tự sửa tile: mọi luật (đủ
-   * hạt, đủ sức, ô hợp lệ) nằm ở một chỗ duy nhất, nên gieo hàng loạt không thể
-   * lệch khỏi gieo một ô.
+   * Gieo một loại hạt xuống MỘT ô. Mỗi cú bấm là một ô — người chơi quyết định
+   * ruộng trông thế nào, muốn xen canh thì đổi hạt giữa chừng.
    */
-  sowAll(cropId: string): number {
+  sowAt(cropId: string, x: number, z: number): boolean {
     this.player.state.selectedSeed = cropId
-    let planted = 0
-    let stop: string | null = null
-
-    for (let z = 0; z < this.grid.height && !stop; z++) {
-      for (let x = 0; x < this.grid.width; x++) {
-        const tile = this.grid.at(x, z)
-        if (!tile || !tile.tilled || tile.crop || tile.prop) continue
-        const result = this.actions.perform('seedBag', x, z, this.player)
-        if (result.ok) {
-          planted++
-          continue
-        }
-        // Hết hạt hoặc hết sức thì dừng hẳn; các lý do khác chỉ là ô đó không
-        // hợp lệ, còn ruộng thì vẫn gieo tiếp được.
-        if (result.reason?.startsWith('Hết')) {
-          stop = result.reason
-          break
-        }
-      }
-    }
-
-    if (planted > 0) {
+    const result = this.actions.perform('plant', x, z, this.player)
+    if (result.ok) {
       this.worldDirty = true
       this.player.playAction('plant', 'seedBag')
-      const def = cropDef(cropId)
-      this.bus.emit('toast', { text: `Gieo ${planted} luống ${def.name}`, kind: 'good' })
+    } else if (result.reason) {
+      this.bus.emit('toast', { text: result.reason, kind: 'bad' })
     }
-    if (stop) this.bus.emit('toast', { text: stop, kind: 'bad' })
-    else if (planted === 0) {
-      this.bus.emit('toast', { text: 'Không còn luống trống', kind: 'info' })
-    }
-
     this.bus.emit('player:changed', undefined)
-    return planted
+    return result.ok
   }
 
   /** Bán toàn bộ nông sản đang có. */
@@ -865,13 +933,21 @@ export class Engine {
       tile.wetUntil = saved.wetUntil
       tile.prop = saved.prop
       tile.propHp = saved.propHp
-      tile.crop = saved.crop
+      // Cây thuộc loại đã bị bỏ khỏi game (củ cải, cà chua, bí ngô, ngô…) thì nhổ
+      // đi, còn hơn để cả nông trại không load được vì một ô.
+      tile.crop = saved.crop && CROPS[saved.crop.typeId] ? saved.crop : null
       tile.site = saved.site ?? null
       // Save trước khi có `building`: luống nào cũng do xây mà ra.
       tile.building = saved.building ?? (saved.tilled ? 'cropPlot' : null)
     }
 
     Object.assign(this.player.state, snap.player)
+    // Hạt và nông sản của loại cây không còn tồn tại cũng bỏ, cùng lý do.
+    this.player.state.inventory = this.player.state.inventory.filter((i) => {
+      const cropId = i.id.startsWith('seed:') ? i.id.slice(5) : i.id
+      return i.id === 'ball' || isMaterial(i.id) || !!CROPS[cropId]
+    })
+    if (!CROPS[this.player.state.selectedSeed]) this.player.state.selectedSeed = CROP_IDS[0]!
     // Save trước khi có xây dựng chưa mang chỉ số sức làm việc.
     if (typeof this.player.state.work !== 'number') this.player.state.work = DEFAULT_WORK
     // Save trước bản có ô dụng cụ nhanh không mang theo trường này. Dựng lại

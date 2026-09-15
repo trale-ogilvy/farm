@@ -66,11 +66,15 @@ export interface CropDef {
   growMinutes: number
   seedPrice: number
   sellPrice: number
-  /** Số lần thu hoạch lại được (0 = nhổ luôn, >0 = ra quả tiếp). */
-  regrow: number
   colorLeaf: number
   colorFruit: number
   shape: 'leafy' | 'vine' | 'stalk'
+  /**
+   * Khoá model glTF ở `render/models/cropModels.ts`. Có thì các giai đoạn
+   * 1..stages-1 vẽ bằng model; `shape` chỉ còn là phương án dự phòng lúc chưa
+   * tải xong.
+   */
+  model?: string
 }
 
 export type JobKind = 'idle' | 'water' | 'harvest' | 'gather' | 'follow'
@@ -131,10 +135,20 @@ export interface InventoryItem {
 }
 
 /**
- * `remove` là dụng cụ dỡ công trình: luôn có, luôn nằm ở ô nhanh cuối, không
- * kéo đi đâu được. Không có cuốc — luống đất chỉ đến từ xây dựng.
+ * Dụng cụ cầm trên tay. Chỉ còn những thứ mà CÙNG MỘT Ô có thể mang hai nghĩa
+ * (rìu chặt cây, bóng ném pet, 🗑️ dỡ công trình). Việc đồng áng — gieo, tưới,
+ * thu — không cần dụng cụ: ô đất tự nói nó cần gì, bấm vào là làm.
+ *
+ * `remove` luôn có, luôn nằm ở ô nhanh cuối, không kéo đi đâu được. Không có
+ * cuốc — luống đất chỉ đến từ xây dựng.
  */
-export type ToolKind = 'wateringCan' | 'seedBag' | 'scythe' | 'axe' | 'ball' | 'remove'
+export type ToolKind = 'axe' | 'ball' | 'remove'
+
+/**
+ * Đạo cụ nhân vật cầm lúc diễn hành động: ngoài dụng cụ thật còn có bình
+ * tưới, túi hạt, liềm — chỉ để nhìn, không chọn được ở hotbar.
+ */
+export type HeldProp = ToolKind | 'wateringCan' | 'seedBag' | 'scythe'
 
 export interface PlayerState {
   x: number
