@@ -23,6 +23,7 @@ watch(open, (v) => {
 
 const ROWS = [
   ['F', 'Làm việc trước mặt — xem bong bóng trên mục tiêu'],
+  ['1 rồi F', 'Cuốc đất mới (cuốc là việc duy nhất phải chọn dụng cụ)'],
   ['WASD / ←↑→↓', 'Di chuyển theo hướng camera'],
   ['Giữ chuột phải', 'Xoay camera quanh nhân vật'],
   ['Q / E', 'Xoay camera bằng bàn phím'],
@@ -37,7 +38,7 @@ const ROWS = [
 
 const FLOW = [
   ['🅕', 'Đứng cạnh mục tiêu là hiện bong bóng — bấm F làm đúng việc đó'],
-  ['⛏️', 'Cuốc đất trống thành luống'],
+  ['⛏️', 'Muốn mở đất mới thì cầm cuốc (phím 1) rồi bấm F'],
   ['🌱', 'Gieo hạt lên luống đã cuốc'],
   ['🪣', 'Múc nước ở ao rồi tưới — cây khô lớn chậm 3 lần'],
   ['🌾', 'Thu hoạch khi cây đã chín'],

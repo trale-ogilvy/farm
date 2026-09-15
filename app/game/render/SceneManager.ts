@@ -9,7 +9,7 @@ import { GrassField } from './GrassField'
 import { buildPropGeometry } from './models/props'
 import { buildCropGeometry } from './models/crops'
 import { toonVertexColors } from './Materials'
-import { INK, makeInstancedOutline } from './Outline'
+import { makeInstancedOutline } from './Outline'
 
 const PROP_KINDS: PropKind[] = ['tree', 'rock', 'bush', 'stump']
 
@@ -34,8 +34,6 @@ export class SceneManager {
   private grass: GrassField
   private props = new Map<string, InstancedGroup>()
   private crops = new Map<string, InstancedGroup>()
-  private cursor: THREE.LineSegments
-  private cursorPos = new Float32Array(24)
   private sun: THREE.DirectionalLight
   private hemi: THREE.HemisphereLight
   private ambient: THREE.AmbientLight
@@ -103,10 +101,6 @@ export class SceneManager {
     this.scene.add(this.grass.mesh)
 
     this.scene.add(this.entityLayer)
-
-    this.cursor = makeTileCursor(this.cursorPos)
-    this.cursor.visible = false
-    this.scene.add(this.cursor)
 
     this.rebuildProps()
 
@@ -197,40 +191,6 @@ export class SceneManager {
     const z = Math.round(p.z)
     this.pickCache = this.grid.inBounds(x, z) ? { x, z } : null
     return this.pickCache
-  }
-
-  setCursor(tile: { x: number; z: number } | null, valid: boolean): void {
-    if (!tile) {
-      this.cursor.visible = false
-      return
-    }
-    this.cursor.visible = true
-
-    // Khung viền phải uốn theo độ cao 4 góc, nếu không nó sẽ cắm vào sườn đồi.
-    const H = this.grid.heights
-    const { x, z } = tile
-    const c = [
-      [x, z],
-      [x + 1, z],
-      [x + 1, z + 1],
-      [x, z + 1],
-    ] as const
-    const lift = 0.06
-    for (let i = 0; i < 4; i++) {
-      const a = c[i]!
-      const b = c[(i + 1) % 4]!
-      const o = i * 6
-      this.cursorPos[o] = a[0] - 0.5
-      this.cursorPos[o + 1] = H.corner(a[0], a[1]) + lift
-      this.cursorPos[o + 2] = a[1] - 0.5
-      this.cursorPos[o + 3] = b[0] - 0.5
-      this.cursorPos[o + 4] = H.corner(b[0], b[1]) + lift
-      this.cursorPos[o + 5] = b[1] - 0.5
-    }
-    this.cursor.geometry.getAttribute('position').needsUpdate = true
-    ;(this.cursor.material as THREE.LineBasicMaterial).color.setHex(
-      valid ? INK : 0xd9564a,
-    )
   }
 
   /** Gọi lại khi địa hình hoặc prop thay đổi. */
@@ -390,24 +350,6 @@ export class SceneManager {
       g.mesh.dispose()
       g.outline.dispose()
     }
-    this.cursor.geometry.dispose()
-    ;(this.cursor.material as THREE.Material).dispose()
     this.renderer.dispose()
   }
-}
-
-/** Khung viền đánh dấu ô đang nhắm tới; toạ độ được cập nhật theo địa hình. */
-function makeTileCursor(buffer: Float32Array): THREE.LineSegments {
-  const geo = new THREE.BufferGeometry()
-  geo.setAttribute('position', new THREE.BufferAttribute(buffer, 3))
-  const mat = new THREE.LineBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.9,
-    depthTest: false,
-  })
-  const lines = new THREE.LineSegments(geo, mat)
-  lines.renderOrder = 999
-  lines.frustumCulled = false
-  return lines
 }

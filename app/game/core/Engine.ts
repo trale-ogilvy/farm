@@ -187,7 +187,7 @@ export class Engine {
     const now = this.clock.elapsed
     this.actions.now = now
 
-    this.handleInput(now)
+    this.handleInput(now, dt)
 
     this.player.update(
       dt,
@@ -235,7 +235,7 @@ export class Engine {
 
   // ------------------------------------------------------------------ input
 
-  private handleInput(now: number): void {
+  private handleInput(now: number, dt: number): void {
     const input = this.input
 
     if (input.wheel !== 0) this.scene.zoomBy(input.wheel * 0.01)
@@ -266,27 +266,14 @@ export class Engine {
       return
     }
 
-    this.mouseIdle = input.pointerMoved || input.primaryJustDown ? 0 : this.mouseIdle + 16
+    this.mouseIdle = input.pointerMoved || input.primaryJustDown ? 0 : this.mouseIdle + dt
     this.hovered = this.scene.pickTile(input.pointer.x, input.pointer.y, input.pointerMoved)
-    // Đang chơi bàn phím thì con trỏ ô bám theo mục tiêu của phím F, chứ không
-    // bám theo con chuột đang nằm yên đâu đó.
-    const keyboardMode = this.mouseIdle >= MOUSE_IDLE_MS
-    if (keyboardMode) {
-      this.scene.setCursor(this.target?.tile ?? null, this.target?.enabled ?? false)
-      return
-    }
-
-    const target = this.resolveTarget()
-    const tile = this.grid.at(target.x, target.z)
-    const tool = this.player.state.tool
-
-    this.scene.setCursor(
-      target,
-      tool === 'ball' ? this.catcher.ready : this.actions.isValidTarget(tool, tile, this.player),
-    )
 
     const wantsAct = input.primaryJustDown || input.justPressed('Space')
     if (!wantsAct) return
+
+    const target = this.resolveTarget()
+    const tool = this.player.state.tool
 
     if (tool === 'ball') {
       const aim = this.hovered ?? target
@@ -305,11 +292,14 @@ export class Engine {
   }
 
   /**
-   * Ô sẽ bị tác động: ưu tiên ô dưới chuột nếu còn trong tầm với, nếu không thì
-   * ô ngay trước mặt. Nhờ vậy chơi bằng bàn phím thuần vẫn được.
+   * Ô sẽ bị tác động khi bấm chuột trái / Space.
+   *
+   * Chuột đứng yên quá lâu thì toạ độ hover chỉ là tàn dư của lần rê cuối —
+   * lúc đó phải quay về ô trước mặt, nếu không Space sẽ tác động vào một chỗ
+   * cách đó cả màn hình.
    */
   private resolveTarget(): { x: number; z: number } {
-    if (this.hovered) {
+    if (this.hovered && this.mouseIdle < MOUSE_IDLE_MS) {
       const d = Math.hypot(
         this.hovered.x - this.player.state.x,
         this.hovered.z - this.player.state.z,

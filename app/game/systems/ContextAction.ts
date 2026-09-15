@@ -279,6 +279,13 @@ function tileAction(tile: Tile, player: Player, now: number): TileAction | null 
   }
 
   if (tile.ground === 'grass' || tile.ground === 'soil') {
+    // Cuốc là việc DUY NHẤT phải chọn dụng cụ trước.
+    //
+    // Cỏ phủ kín bản đồ, nên nếu để nó hiện theo ngữ cảnh như mọi việc khác thì
+    // đi đâu cũng thấy bong bóng CUỐC — bong bóng mất hết tác dụng báo hiệu
+    // "chỗ này có việc". Bắt cầm cuốc là cách nói rõ ý định: mở đất mới là quyết
+    // định của người chơi, không phải việc tiện tay.
+    if (s.tool !== 'hoe') return null
     return { kind: 'till', lift: 0.45, enabled: s.energy >= 3, reason: 'Hết sức rồi, đi ngủ đi' }
   }
 

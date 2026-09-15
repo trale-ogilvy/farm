@@ -24,7 +24,7 @@ làm. Ô quyết định việc, không phải người chơi chọn dụng cụ
 
 | Trạng thái ô | Việc |
 |---|---|
-| Cỏ / đất chưa cuốc | CUỐC |
+| Cỏ / đất chưa cuốc | CUỐC — *chỉ khi đang cầm cuốc (phím `1`)* |
 | Luống trống | TRỒNG |
 | Cây đang lớn, đất khô | TƯỚI |
 | Cây đã chín | THU HOẠCH |
@@ -35,6 +35,11 @@ làm. Ô quyết định việc, không phải người chơi chọn dụng cụ
 
 Bong bóng mờ đi khi đúng ngữ cảnh nhưng thiếu tài nguyên (hết hạt, hết nước);
 bấm `F` lúc đó sẽ nói rõ thiếu gì thay vì im lặng.
+
+**Cuốc là việc duy nhất phải chọn dụng cụ trước.** Cỏ phủ kín bản đồ, nên nếu để
+nó hiện theo ngữ cảnh như mọi việc khác thì đi đâu cũng thấy bong bóng CUỐC và
+bong bóng mất hết tác dụng báo hiệu "chỗ này có việc". Bắt cầm cuốc là cách nói
+rõ ý định: mở đất mới là quyết định của người chơi, không phải việc tiện tay.
 
 | Phím | Tác dụng |
 |---|---|
