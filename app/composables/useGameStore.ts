@@ -1,4 +1,4 @@
-import { computed, reactive, ref, shallowRef } from 'vue'
+import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import type { Engine } from '~/game/core/Engine'
 import type { InventoryItem, JobKind, PetDef, ToolKind } from '~/game/types'
 import { petDef } from '~/game/data/pets'
@@ -59,6 +59,12 @@ const ready = ref(false)
 const toasts = ref<Toast[]>([])
 
 let toastId = 0
+
+// Đăng ký một lần ở tầng module, không phải trong useGameStore(): hàm đó chạy
+// lại ở mỗi component dùng store, watch sẽ nhân lên theo số component.
+watch(panel, (p) => {
+  engineRef.value?.setInputCaptured(p === 'backpack')
+})
 
 export function useGameStore() {
   const engine = engineRef

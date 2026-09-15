@@ -430,6 +430,14 @@ export class Engine {
     this.promptSink?.(p)
   }
 
+  /**
+   * Nhường bàn phím cho UI. Ba lô điều hướng bằng WASD, mà WASD cũng là phím
+   * đi — không nhường thì mỗi lần chọn ô là nhân vật lại chạy sau lưng bảng.
+   */
+  setInputCaptured(on: boolean): void {
+    this.input.captured = on
+  }
+
   setTool(tool: ToolKind): void {
     this.player.setTool(tool)
     this.bus.emit('player:changed', undefined)

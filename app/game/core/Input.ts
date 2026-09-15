@@ -20,6 +20,17 @@ export class Input {
   /** Bánh xe cuộn tích luỹ trong frame, dùng để zoom. */
   wheel = 0
 
+  /**
+   * Lớp UI đang chiếm bàn phím (ba lô mở, điều hướng ô bằng WASD).
+   *
+   * Chặn ngay tại đây chứ không rải `if (uiOpen)` khắp Engine: chỉ cần một chỗ
+   * này sai là nhân vật vẫn chạy sau lưng bảng đang mở.
+   */
+  captured = false
+
+  /** Vẫn lọt qua khi bị chiếm — nếu không thì không còn đường đóng bảng. */
+  private static readonly ESCAPES = new Set(['Escape', 'KeyB'])
+
   private el: HTMLElement
   private bound: Array<[string, EventListener, EventTarget]> = []
 
@@ -101,15 +112,18 @@ export class Input {
   }
 
   isDown(code: string): boolean {
+    if (this.captured && !Input.ESCAPES.has(code)) return false
     return this.down.has(code)
   }
 
   justPressed(code: string): boolean {
+    if (this.captured && !Input.ESCAPES.has(code)) return false
     return this.pressed.has(code)
   }
 
   /** Vector di chuyển thô theo màn hình, đã chuẩn hoá độ dài. */
   moveAxis(): { x: number; y: number } {
+    if (this.captured) return { x: 0, y: 0 }
     let x = 0
     let y = 0
     if (this.isDown('KeyW') || this.isDown('ArrowUp')) y -= 1

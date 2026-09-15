@@ -66,6 +66,23 @@ Góc dưới trái là avatar nhân vật (vòng ngoài là thanh sức) kèm s�
 nhanh ứng với phím `1`–`6`. Bấm avatar hoặc phím `B` để mở ba lô, chia tab
 *Tất cả / Dụng cụ / Hạt giống / Nông sản / Vật liệu*.
 
+Ba lô là **lưới ô vuông 56px chỉ hiện biểu tượng**, khung thông tin nằm bên
+phải. Mọi kích thước chốt cứng ở CSS chứ không để nội dung quyết định: 6 cột
+cố định, luôn đủ 30 ô kể cả khi ba lô rỗng, `scrollbar-gutter: stable` chừa sẵn
+chỗ cho thanh cuộn, khung bên phải giữ nguyên bề ngang khi chưa chọn gì. Nhờ
+vậy đổi tab hay nhặt thêm đồ đều không làm bảng co giãn — mắt người chơi nhớ
+được vị trí từng món, và không có cú nhảy nào lúc thanh cuộn xuất hiện.
+
+Chọn ô bằng `WASD`: `A`/`D` đi theo thứ tự món (hết dòng thì sang dòng sau),
+`W`/`S` nhảy đúng một hàng. Chặn `A`/`D` ở mép dòng thì hàng cuối khuyết ô sẽ
+có món không cách nào tới được, mà chạm tới mọi món mới là việc của lưới này.
+`Q`/`E` đổi tab, `Enter` cầm món đang chọn lên.
+
+Ba lô mở thì bàn phím thuộc về UI: `Input.captured` cắt `moveAxis` và
+`justPressed` ngay ở nguồn (trừ `Esc` và `B`), nên không có chuyện nhân vật
+chạy sau lưng bảng đang mở. Chặn ở một chỗ, không rải `if (uiOpen)` khắp
+Engine.
+
 **Chỉ dụng cụ đặt được vào ô nhanh.** Hạt giống và nông sản đi theo *hành động*
 chứ không theo thứ đang cầm, nên một ô "hạt cà rốt" sẽ không có nghĩa gì. Kéo
 được mọi thứ ra khỏi ba lô nhưng thả nhầm thì ô nhanh từ chối kèm lời giải
