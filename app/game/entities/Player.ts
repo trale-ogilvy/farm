@@ -51,7 +51,9 @@ export class Player {
    */
   playAction(anim: ActionAnim, tool?: ToolKind): void {
     this.action = { anim, t: 0, duration: Player.DURATION[anim] }
-    this.faceLock = Player.DURATION[anim]
+    // Khoá hướng ngắn hơn animation: đủ để cú ra đòn không quay lưng vào mục
+    // tiêu, nhưng không giữ lâu tới mức người chơi bấm phím mà thấy đơ.
+    this.faceLock = Math.min(Player.DURATION[anim], 0.3)
     if (tool) {
       this.actionTool = tool
       this.syncToolMesh()
@@ -104,11 +106,21 @@ export class Player {
     const speed = Math.hypot(this.vx, this.vz)
     const speed01 = Math.min(1, speed / WALK_SPEED)
     this.faceLock = Math.max(0, this.faceLock - dts)
+
+    // Hướng nhìn bám theo PHÍM ĐANG BẤM, không phải vận tốc thực tế.
+    //
+    // Đâm vào gốc cây thì moveAxisWise đặt vận tốc về 0; nếu lấy hướng từ vận
+    // tốc, nhân vật đứng sát vật cản sẽ không bao giờ quay mặt về phía nó được
+    // — tức là không bao giờ ngắm được để chặt. Lấy từ phím bấm còn xử đúng cả
+    // trường hợp trượt dọc tường: người chơi hướng vào tường thì mặt hướng vào
+    // tường, dù thân đang trượt ngang.
+    const pressing = axis.x !== 0 || axis.y !== 0
+    if (pressing && this.faceLock <= 0) {
+      this.state.facing = Math.atan2(dirX, dirZ)
+    }
+
     if (speed01 > 0.02) {
       this.phase += dts * (6 + speed01 * 5)
-      // Đang trong animation hành động thì giữ nguyên hướng đã quay về mục tiêu,
-      // nếu không nhân vật sẽ vừa cuốc vừa quay lưng lại chỗ mình đang cuốc.
-      if (this.faceLock <= 0) this.state.facing = Math.atan2(this.vx, this.vz)
       if (running) this.state.energy = Math.max(0, this.state.energy - dts * 1.6)
     }
 
