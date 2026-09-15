@@ -3,8 +3,7 @@ import type { Grid } from '../world/Grid'
 import { WATER_LEVEL } from '../world/Heightmap'
 import { PALETTE, grassColorAt, soilColorAt, toonVertexColors } from './Materials'
 import { makeInstancedOutline } from './Outline'
-
-const Y_TILLED = 0.05
+import { Y_TILLED, plotTransform } from './instanceTransforms'
 
 /**
  * Địa hình được nướng thành MỘT mesh duy nhất với màu ở vertex: 1 draw call cho
@@ -134,18 +133,9 @@ export class TerrainMesh {
     for (const tile of this.grid.tiles) {
       if (!tile.tilled) continue
       const wet = tile.wetUntil > now
-      const h = ((tile.x * 48271) ^ (tile.z * 69621)) >>> 0
-
-      this.dummy.position.set(
-        tile.x,
-        this.grid.heights.tileHeight(tile.x, tile.z) + Y_TILLED,
-        tile.z,
-      )
       // Xoay và méo mỗi đĩa một kiểu để hàng luống không lộ ra là cùng một
       // khuôn lặp lại — đây là cái làm nó trông như vẽ tay từng mảng.
-      this.dummy.rotation.y = (h % 628) / 100
-      this.dummy.scale.set(1 + ((h >> 8) % 14) / 100, 1, 1 + ((h >> 16) % 14) / 100)
-      this.dummy.updateMatrix()
+      plotTransform(this.dummy, this.grid, tile.x, tile.z)
       this.plots.setMatrixAt(i, this.dummy.matrix)
       this.color.setHex(wet ? PALETTE.soilTilledWet : PALETTE.soilTilled)
       this.plots.setColorAt(i, this.color)

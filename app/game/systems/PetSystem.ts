@@ -6,6 +6,7 @@ import type { JobKind, Pet, Tile } from '../types'
 import { petDef, rollWildPetId } from '../data/pets'
 import { cropDef, isHarvestable } from '../data/crops'
 import { animateWalk, buildPetRig, type Rig } from '../render/models/character'
+import { setOutlineHighlight } from '../render/Outline'
 import { WET_DURATION } from './CropSystem'
 import { addItem } from './FarmActions'
 import { mulberry32 } from '../core/rng'
@@ -46,6 +47,7 @@ export class PetSystem {
   private rand = mulberry32(0xc0ffee)
   private wildTimer = 0
   private uidCounter = 0
+  private highlighted: string | null = null
 
   constructor(
     private grid: Grid,
@@ -72,6 +74,7 @@ export class PetSystem {
   }
 
   remove(uid: string): void {
+    if (this.highlighted === uid) this.highlighted = null
     const i = this.pets.findIndex((p) => p.uid === uid)
     if (i < 0) return
     this.pets.splice(i, 1)
@@ -438,6 +441,16 @@ export class PetSystem {
       x: THREE.MathUtils.clamp(x, 1, this.grid.width - 2),
       z: THREE.MathUtils.clamp(z, 1, this.grid.height - 2),
     }
+  }
+
+  /** Làm sáng nét mực của một pet, hoặc tắt hết khi truyền null. */
+  setHighlight(uid: string | null): void {
+    if (uid === this.highlighted) return
+    const prev = this.highlighted ? this.runtime.get(this.highlighted) : null
+    if (prev) setOutlineHighlight(prev.rig.root, false)
+    const next = uid ? this.runtime.get(uid) : null
+    if (next) setOutlineHighlight(next.rig.root, true)
+    this.highlighted = next ? uid : null
   }
 
   // ------------------------------------------------------------------- taming

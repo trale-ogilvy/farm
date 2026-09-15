@@ -9,9 +9,26 @@ import { GrassField } from './GrassField'
 import { buildPropGeometry } from './models/props'
 import { buildCropGeometry } from './models/crops'
 import { toonVertexColors } from './Materials'
+import { cropTransform, plotTransform, propTransform } from './instanceTransforms'
+import { TargetHighlight } from './TargetHighlight'
 import { makeInstancedOutline } from './Outline'
 
 const PROP_KINDS: PropKind[] = ['tree', 'rock', 'bush', 'stump']
+
+/**
+ * Mô tả vật thể cần highlight, dưới dạng renderer hiểu được.
+ *
+ * Cố ý KHÔNG nhận thẳng `ActionTarget` từ tầng systems: renderer chỉ nên biết
+ * "vẽ sáng cái cây ở ô này", không cần biết người chơi sắp chặt hay sắp tưới.
+ */
+export interface HighlightRequest {
+  kind: 'plot' | 'crop' | 'prop'
+  x: number
+  z: number
+  /** `${cropId}:${stage}` — khớp với khoá của instanced mesh cây trồng. */
+  cropKey?: string
+  propKind?: PropKind
+}
 
 interface InstancedGroup {
   mesh: THREE.InstancedMesh
@@ -32,6 +49,7 @@ export class SceneManager {
   private terrain: TerrainMesh
   private sky = new Sky()
   private grass: GrassField
+  private highlight = new TargetHighlight()
   private props = new Map<string, InstancedGroup>()
   private crops = new Map<string, InstancedGroup>()
   private sun: THREE.DirectionalLight
@@ -101,6 +119,7 @@ export class SceneManager {
     this.scene.add(this.grass.mesh)
 
     this.scene.add(this.entityLayer)
+    this.scene.add(this.highlight.mesh)
 
     this.rebuildProps()
 
@@ -173,6 +192,7 @@ export class SceneManager {
 
     this.terrain.update(elapsedSeconds)
     this.grass.update(elapsedSeconds)
+    this.highlight.update(elapsedSeconds)
   }
 
   /**
@@ -191,6 +211,42 @@ export class SceneManager {
     const z = Math.round(p.z)
     this.pickCache = this.grid.inBounds(x, z) ? { x, z } : null
     return this.pickCache
+  }
+
+  /**
+   * Đánh dấu vật thể đang được nhắm. Hình học lấy thẳng từ instanced mesh đang
+   * vẽ nó, và vị trí lấy từ đúng hàm transform đã đặt nó ở đó — nên lớp sáng
+   * luôn trùng khít, kể cả khi vật thể được xoay và phóng ngẫu nhiên theo toạ độ.
+   */
+  setHighlight(req: HighlightRequest | null): void {
+    if (!req) {
+      this.highlight.hide()
+      return
+    }
+
+    let geo: THREE.BufferGeometry | undefined
+    switch (req.kind) {
+      case 'prop':
+        geo = req.propKind ? this.props.get(req.propKind)?.mesh.geometry : undefined
+        propTransform(this.dummy, this.grid, req.x, req.z)
+        break
+      case 'crop':
+        geo = req.cropKey ? this.crops.get(req.cropKey)?.mesh.geometry : undefined
+        cropTransform(this.dummy, this.grid, req.x, req.z)
+        break
+      default:
+        // Ô cỏ chưa cuốc cũng dùng hình đĩa đất — nó thành bản xem trước của
+        // mảng đất sắp tạo ra.
+        geo = this.terrain.plots.geometry
+        plotTransform(this.dummy, this.grid, req.x, req.z)
+        break
+    }
+
+    if (!geo) {
+      this.highlight.hide()
+      return
+    }
+    this.highlight.show(geo, this.dummy.matrix)
   }
 
   /** Gọi lại khi địa hình hoặc prop thay đổi. */
@@ -257,15 +313,7 @@ export class SceneManager {
       const i = cursorIdx.get(tile.prop) ?? 0
       group.outline.count = i + 1
       // Xoay và phóng to nhẹ theo toạ độ để rừng không trông như copy-paste.
-      const h = ((tile.x * 73856093) ^ (tile.z * 19349663)) >>> 0
-      this.dummy.position.set(
-        tile.x,
-        this.grid.heights.tileHeight(tile.x, tile.z),
-        tile.z,
-      )
-      this.dummy.rotation.set(0, (h % 360) * 0.0174, 0)
-      this.dummy.scale.setScalar(0.86 + ((h >> 8) % 100) / 340)
-      this.dummy.updateMatrix()
+      propTransform(this.dummy, this.grid, tile.x, tile.z)
       group.mesh.setMatrixAt(i, this.dummy.matrix)
       group.mesh.count = i + 1
       cursorIdx.set(tile.prop, i + 1)
@@ -302,15 +350,7 @@ export class SceneManager {
         list.length,
       )
       list.forEach((pos, i) => {
-        const h = ((pos.x * 12289) ^ (pos.z * 32771)) >>> 0
-        this.dummy.position.set(
-          pos.x,
-          this.grid.heights.tileHeight(pos.x, pos.z) + 0.06,
-          pos.z,
-        )
-        this.dummy.rotation.set(0, (h % 360) * 0.0174, 0)
-        this.dummy.scale.setScalar(0.92 + ((h >> 8) % 100) / 620)
-        this.dummy.updateMatrix()
+        cropTransform(this.dummy, this.grid, pos.x, pos.z)
         group.mesh.setMatrixAt(i, this.dummy.matrix)
       })
       group.mesh.count = list.length
@@ -345,6 +385,7 @@ export class SceneManager {
     this.terrain.dispose()
     this.sky.dispose()
     this.grass.dispose()
+    this.highlight.dispose()
     for (const g of [...this.props.values(), ...this.crops.values()]) {
       g.mesh.geometry.dispose()
       g.mesh.dispose()

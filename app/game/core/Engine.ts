@@ -260,6 +260,7 @@ export class Engine {
     // tiêu ngay, không có độ trễ.
     this.target = resolveAction(this.grid, this.player, this.pets, now)
     this.updatePrompt()
+    this.applyHighlight()
 
     if (input.justPressed('KeyF')) {
       this.contextAction()
@@ -350,6 +351,40 @@ export class Engine {
       this.worldDirty = true
     } else if (result.reason) {
       this.bus.emit('toast', { text: result.reason, kind: 'bad' })
+    }
+  }
+
+  /**
+   * Làm sáng vật thể sắp bị tác động. Pet đi đường riêng vì nó gồm cả chục khối
+   * rời, không phủ được một lớp màng duy nhất như vật thể instanced.
+   */
+  private applyHighlight(): void {
+    const t = this.target
+    this.pets.setHighlight(t?.kind === 'catch' ? t.petUid : null)
+
+    if (!t || !t.tile) {
+      this.scene.setHighlight(null)
+      return
+    }
+
+    const tile = this.grid.at(t.tile.x, t.tile.z)
+    if (!tile) {
+      this.scene.setHighlight(null)
+      return
+    }
+
+    const at = { x: t.tile.x, z: t.tile.z }
+    if (t.kind === 'chop' && tile.prop) {
+      this.scene.setHighlight({ kind: 'prop', propKind: tile.prop, ...at })
+    } else if (tile.crop && (t.kind === 'harvest' || t.kind === 'water')) {
+      // Tưới và thu hoạch đều nhắm vào CÂY, không phải mảng đất dưới nó.
+      this.scene.setHighlight({
+        kind: 'crop',
+        cropKey: `${tile.crop.typeId}:${tile.crop.stage}`,
+        ...at,
+      })
+    } else {
+      this.scene.setHighlight({ kind: 'plot', ...at })
     }
   }
 

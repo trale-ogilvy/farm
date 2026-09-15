@@ -100,7 +100,44 @@ export function makeInstancedOutline(
   return shell
 }
 
+/** Nét mực của mục tiêu: dày hơn và chuyển sang vàng. */
+const HIGHLIGHT_INK = 0xffcf6b
+const HIGHLIGHT_THICKNESS = 0.055
+
+let highlightMat: THREE.ShaderMaterial | null = null
+
+function highlightMaterial(): THREE.ShaderMaterial {
+  if (!highlightMat) {
+    highlightMat = outlineMaterial(HIGHLIGHT_THICKNESS)
+    highlightMat.uniforms.uColor!.value = new THREE.Color(HIGHLIGHT_INK)
+  }
+  return highlightMat
+}
+
+/**
+ * Bật/tắt highlight cho một cây đối tượng nhiều mesh (pet).
+ *
+ * Pet gồm cả chục khối rời nên không phủ được một lớp màng duy nhất như với
+ * vật thể instanced. Thay vào đó, chính nét mực sẵn có của nó đổi sang vàng và
+ * dày lên — cùng một thông điệp "cái này đang được nhắm", bằng phương tiện mà
+ * cấu trúc của pet cho phép.
+ */
+export function setOutlineHighlight(root: THREE.Object3D, on: boolean): void {
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh
+    if (!mesh.userData?.isOutline) return
+    if (on) {
+      if (!mesh.userData.baseMaterial) mesh.userData.baseMaterial = mesh.material
+      mesh.material = highlightMaterial()
+    } else if (mesh.userData.baseMaterial) {
+      mesh.material = mesh.userData.baseMaterial as THREE.Material
+    }
+  })
+}
+
 export function disposeOutlines(): void {
+  highlightMat?.dispose()
+  highlightMat = null
   for (const mat of cache.values()) mat.dispose()
   cache.clear()
 }
