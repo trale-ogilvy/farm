@@ -23,7 +23,7 @@ export function buildPropGeometry(kind: PropKind): THREE.BufferGeometry {
 function treeGeometry(): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = []
 
-  const trunk = new THREE.CylinderGeometry(0.13, 0.19, 1.15, 6)
+  const trunk = new THREE.CylinderGeometry(0.14, 0.21, 1.15, 8)
   trunk.translate(0, 0.575, 0)
   parts.push(paint(trunk, PALETTE.trunk))
 
@@ -35,8 +35,9 @@ function treeGeometry(): THREE.BufferGeometry {
     [0.05, 2.0, -0.05, 0.44, PALETTE.foliage],
   ]
   for (const [x, y, z, r, color] of blobs) {
-    const g = new THREE.IcosahedronGeometry(r, 0)
-    g.scale(1, 0.86, 1)
+    // detail 1 thay vì 0: tán lá tròn trịa thay vì là mấy viên xúc xắc.
+    const g = new THREE.IcosahedronGeometry(r, 1)
+    g.scale(1, 0.88, 1)
     g.translate(x, y, z)
     parts.push(paint(g, color))
   }
@@ -44,6 +45,7 @@ function treeGeometry(): THREE.BufferGeometry {
   return mergeSimple(parts)
 }
 
+/** Đá cố tình GIỮ detail 0: mặt cắt sắc cạnh mới đọc ra là đá, bo tròn thành cục bột. */
 function rockGeometry(): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = []
   const a = new THREE.IcosahedronGeometry(0.42, 0)
@@ -68,8 +70,8 @@ function bushGeometry(): THREE.BufferGeometry {
     [-0.22, 0.22, -0.14, 0.24],
   ]
   for (const [x, y, z, r] of offsets) {
-    const g = new THREE.IcosahedronGeometry(r, 0)
-    g.scale(1, 0.82, 1)
+    const g = new THREE.IcosahedronGeometry(r, 1)
+    g.scale(1, 0.84, 1)
     g.translate(x, y, z)
     parts.push(paint(g, PALETTE.bush))
   }

@@ -34,16 +34,30 @@ export class Player {
     this.swingT = 0.34
   }
 
-  update(dt: number, input: Input, grid: Grid, t: number): void {
+  /**
+   * `camForward` / `camRight` là hệ trục của camera chiếu xuống mặt phẳng XZ.
+   * Với camera xoay tự do kiểu BotW, bấm W nghĩa là "đi về phía đang nhìn" chứ
+   * không còn là "đi về -Z" — nên hướng phải do camera cấp, không hardcode.
+   */
+  update(
+    dt: number,
+    input: Input,
+    grid: Grid,
+    t: number,
+    camForward: { x: number; z: number },
+    camRight: { x: number; z: number },
+  ): void {
     const dts = dt / 1000
     const axis = input.moveAxis()
     const running = input.isDown('ShiftLeft') || input.isDown('ShiftRight')
     // Hết sức thì không chạy được nữa, buộc người chơi phải nghỉ/ăn.
     const maxSpeed = running && this.state.energy > 5 ? RUN_SPEED : WALK_SPEED
 
-    // Camera có yaw = 0 nên trục màn hình trùng trục thế giới: W là -Z, D là +X.
-    const targetVx = axis.x * maxSpeed
-    const targetVz = axis.y * maxSpeed
+    // axis.y = -1 khi bấm W, nên đổi dấu để W ra hướng "tiến".
+    const dirX = camRight.x * axis.x + camForward.x * -axis.y
+    const dirZ = camRight.z * axis.x + camForward.z * -axis.y
+    const targetVx = dirX * maxSpeed
+    const targetVz = dirZ * maxSpeed
 
     const blend = 1 - Math.exp(-ACCEL * dts)
     this.vx += (targetVx - this.vx) * blend
@@ -59,7 +73,11 @@ export class Player {
       if (running) this.state.energy = Math.max(0, this.state.energy - dts * 1.6)
     }
 
-    this.rig.root.position.set(this.state.x, 0, this.state.z)
+    this.rig.root.position.set(
+      this.state.x,
+      grid.groundY(this.state.x, this.state.z),
+      this.state.z,
+    )
     // Xoay mượt về hướng đi thay vì nhảy cóc.
     const cur = this.rig.root.rotation.y
     this.rig.root.rotation.y = cur + shortestAngle(cur, this.state.facing) * (1 - Math.exp(-18 * dts))

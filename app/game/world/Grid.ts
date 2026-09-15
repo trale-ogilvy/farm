@@ -1,5 +1,11 @@
 import type { GroundKind, Tile, Vec2 } from '../types'
 import { mulberry32, valueNoise2D } from '../core/rng'
+import {
+  Heightmap,
+  MAX_WALKABLE_STEP,
+  WATER_LEVEL,
+  generateHeights,
+} from './Heightmap'
 
 export const TILE = 1
 
@@ -11,6 +17,8 @@ export class Grid {
   readonly width: number
   readonly height: number
   readonly tiles: Tile[]
+  /** Độ cao lưu theo góc ô; gán ngay sau khi sinh thế giới. */
+  heights: Heightmap
 
   /** Các ô thay đổi kể từ lần render trước; renderer đọc xong sẽ xoá. */
   readonly dirty = new Set<number>()
@@ -18,6 +26,7 @@ export class Grid {
   constructor(width: number, height: number) {
     this.width = width
     this.height = height
+    this.heights = new Heightmap(width, height)
     this.tiles = new Array(width * height)
     for (let z = 0; z < height; z++) {
       for (let x = 0; x < width; x++) {
@@ -57,12 +66,21 @@ export class Grid {
     if (this.inBounds(x, z)) this.dirty.add(this.index(x, z))
   }
 
-  /** Người chơi và pet có đi qua được ô này không. */
+  /** Độ cao mặt đất tại một điểm bất kỳ — dùng để đặt chân nhân vật và pet. */
+  groundY(wx: number, wz: number): number {
+    return this.heights.sample(wx, wz)
+  }
+
+  /**
+   * Người chơi và pet có đi qua được ô này không.
+   * Ngoài vật cản còn chặn cả dốc đứng, nếu không nhân vật sẽ leo được lên vách.
+   */
   isWalkable(x: number, z: number): boolean {
     const t = this.at(x, z)
     if (!t) return false
     if (t.ground === 'water') return false
     if (t.prop === 'tree' || t.prop === 'rock') return false
+    if (this.heights.tileSlope(x, z) > MAX_WALKABLE_STEP) return false
     return true
   }
 
@@ -94,15 +112,16 @@ export interface WorldGenOptions {
 }
 
 export const DEFAULT_GEN: WorldGenOptions = {
-  width: 48,
-  height: 48,
+  width: 72,
+  height: 72,
   seed: 1337,
-  farmSize: 14,
+  farmSize: 16,
 }
 
 /**
- * Sinh bản đồ: ao nước ở góc, rừng cây thưa quanh rìa, khu đất trồng dọn sẵn
- * ở giữa để người chơi bắt đầu ngay mà không phải chặt cây 10 phút.
+ * Sinh bản đồ. Độ cao sinh trước, phần còn lại suy ra từ nó: chỗ nào thấp hơn
+ * mực nước thì thành ao, chỗ nào dốc thì thành vách đá trơ, chỗ nào thoải thì
+ * mọc cây.
  */
 export function generateWorld(opts: WorldGenOptions = DEFAULT_GEN): Grid {
   const grid = new Grid(opts.width, opts.height)
@@ -112,55 +131,82 @@ export function generateWorld(opts: WorldGenOptions = DEFAULT_GEN): Grid {
   const cx = opts.width / 2
   const cz = opts.height / 2
   const half = opts.farmSize / 2
+  const pond = { x: cx - opts.farmSize * 1.15, z: cz - opts.farmSize * 0.6, r: 5.5 }
 
-  // Ao nước: một hình tròn méo ở phía tây-bắc khu farm.
-  const pond = { x: cx - opts.farmSize * 0.95, z: cz - opts.farmSize * 0.55, r: 4.2 }
+  grid.heights = generateHeights({
+    width: opts.width,
+    height: opts.height,
+    seed: opts.seed,
+    farmHalf: half,
+    pond,
+  })
 
   for (const tile of grid.tiles) {
     const { x, z } = tile
+    const h = grid.heights.tileHeight(x, z)
+    const slope = grid.heights.tileSlope(x, z)
     const inFarm = Math.abs(x - cx) < half && Math.abs(z - cz) < half
 
-    const pondD = Math.hypot(x - pond.x, z - pond.z) + noise(x * 0.35, z * 0.35) * 1.8 - 0.9
-    if (pondD < pond.r) {
+    if (h < WATER_LEVEL) {
       tile.ground = 'water'
       continue
     }
 
-    if (inFarm) {
-      tile.ground = 'soil'
+    // Cao nguyên nông trại để nguyên là ĐỒNG CỎ, không phải đất trọc sẵn.
+    // Một mảng nâu 16×16 chiếm hết khung hình và trông như lỗi render; để cỏ
+    // thì cảnh đẹp hơn hẳn, và luống cày người chơi tự tạo mới nổi bật lên.
+    if (inFarm) continue
+
+    // Sườn dốc là đá trơ, không mọc gì được.
+    if (slope > MAX_WALKABLE_STEP) {
+      tile.ground = 'grass'
+      if (rand() < 0.12) {
+        tile.prop = 'rock'
+        tile.propHp = 2
+      }
       continue
     }
 
-    // Viền bản đồ là rừng dày, chặn người chơi đi ra ngoài.
-    const edge = Math.min(x, z, opts.width - 1 - x, opts.height - 1 - z)
-    if (edge <= 1) {
-      tile.prop = 'tree'
-      tile.propHp = 999
-      continue
-    }
-
-    const density = noise(x * 0.12, z * 0.12)
+    const density = noise(x * 0.09, z * 0.09)
     const jitter = rand()
-    if (edge <= 4 || density > 0.68) {
-      if (jitter < 0.55) {
+    const fromCentre = Math.max(Math.abs(x - cx), Math.abs(z - cz))
+
+    // Cao nguyên trồng trọt phải trống tuyệt đối.
+    if (fromCentre < half + 1) continue
+
+    // Vành đai quanh nông trại: rải bụi và đá nhỏ cho đỡ trống, nhưng không có
+    // cây to — cây to ở gần sẽ che mất tầm nhìn của camera sau lưng.
+    if (fromCentre < half + 6) {
+      if (jitter < 0.07) {
+        tile.prop = 'bush'
+        tile.propHp = 1
+      } else if (jitter < 0.09) {
+        tile.prop = 'rock'
+        tile.propHp = 2
+      }
+      continue
+    }
+
+    if (density > 0.62) {
+      if (jitter < 0.5) {
         tile.prop = 'tree'
         tile.propHp = 3
-      } else if (jitter < 0.75) {
+      } else if (jitter < 0.72) {
         tile.prop = 'bush'
         tile.propHp = 1
       }
-    } else if (density < 0.3 && jitter < 0.06) {
+    } else if (density < 0.32 && jitter < 0.05) {
       tile.prop = 'rock'
       tile.propHp = 2
-    } else if (jitter < 0.03) {
+    } else if (jitter < 0.025) {
       tile.prop = 'bush'
       tile.propHp = 1
     }
   }
 
-  // Lối mòn nối khu farm ra ao, cho đỡ lạc.
+  // Lối mòn từ nông trại ra ao, bám theo một đường thẳng và tránh nước.
   const pathZ = Math.round(cz)
-  for (let x = Math.round(pond.x); x < cx - half; x++) {
+  for (let x = Math.round(pond.x) + 2; x < cx - half; x++) {
     const t = grid.at(x, pathZ)
     if (t && t.ground !== 'water') {
       t.ground = 'path'
@@ -183,3 +229,5 @@ export function clearSpawnArea(grid: Grid, x: number, z: number, radius = 2): vo
 export function groundIsFarmable(ground: GroundKind): boolean {
   return ground === 'soil' || ground === 'grass'
 }
+
+export { WATER_LEVEL, MAX_WALKABLE_STEP }

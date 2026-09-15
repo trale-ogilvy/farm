@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { PetDef } from '../../types'
 import { PALETTE, blobShadowMaterial, toon } from '../Materials'
+import { roundedBox } from './geometry'
 
 /**
  * Rig tối giản: chỉ đủ các khớp cần cho chu kỳ đi bộ và animation làm việc.
@@ -19,8 +20,13 @@ export interface Rig {
   toolSocket?: THREE.Object3D
 }
 
-function box(w: number, h: number, d: number, color: number): THREE.Mesh {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), toon(color))
+/**
+ * Mọi khối của nhân vật đều bo góc. Bán kính bo tỉ lệ với cạnh ngắn nhất để khối
+ * nhỏ (mũi, mắt) không bị bo thành viên bi mất hình.
+ */
+function box(w: number, h: number, d: number, color: number, round = 0.3): THREE.Mesh {
+  const r = Math.min(w, h, d) * round
+  const mesh = new THREE.Mesh(roundedBox(w, h, d, r), toon(color))
   mesh.castShadow = true
   return mesh
 }
@@ -42,7 +48,7 @@ export function buildPlayerRig(): Rig {
   const bob = new THREE.Group()
   root.add(bob)
 
-  const torso = box(0.42, 0.42, 0.28, PALETTE.shirt)
+  const torso = box(0.44, 0.44, 0.32, PALETTE.shirt, 0.38)
   torso.position.y = 0.63
   bob.add(torso)
 
@@ -50,10 +56,10 @@ export function buildPlayerRig(): Rig {
   headGroup.position.y = 0.92
   bob.add(headGroup)
 
-  const head = box(0.38, 0.34, 0.34, PALETTE.skin)
+  const head = box(0.44, 0.4, 0.4, PALETTE.skin, 0.42)
   headGroup.add(head)
 
-  const hair = box(0.4, 0.12, 0.36, PALETTE.hair)
+  const hair = box(0.46, 0.14, 0.42, PALETTE.hair, 0.4)
   hair.position.y = 0.16
   headGroup.add(hair)
 
@@ -67,14 +73,14 @@ export function buildPlayerRig(): Rig {
   headGroup.add(brim)
 
   // Mũi nhỏ để nhận ra nhân vật đang quay mặt về hướng nào.
-  const nose = box(0.08, 0.08, 0.06, PALETTE.skin)
-  nose.position.set(0, -0.02, 0.19)
+  const nose = box(0.09, 0.09, 0.07, PALETTE.skin, 0.35)
+  nose.position.set(0, -0.02, 0.22)
   headGroup.add(nose)
 
   const mkArm = (side: number) => {
     const pivot = new THREE.Group()
     pivot.position.set(side * 0.28, 0.8, 0)
-    const arm = box(0.13, 0.38, 0.13, PALETTE.skin)
+    const arm = box(0.14, 0.38, 0.14, PALETTE.skin, 0.45)
     arm.position.y = -0.19
     pivot.add(arm)
     bob.add(pivot)
@@ -90,7 +96,7 @@ export function buildPlayerRig(): Rig {
   const mkLeg = (side: number) => {
     const pivot = new THREE.Group()
     pivot.position.set(side * 0.11, 0.42, 0)
-    const leg = box(0.15, 0.42, 0.15, PALETTE.pants)
+    const leg = box(0.16, 0.42, 0.16, PALETTE.pants, 0.42)
     leg.position.y = -0.21
     pivot.add(leg)
     bob.add(pivot)
@@ -128,12 +134,12 @@ export function buildPetRig(def: PetDef): Rig {
   }
   const [bw, bh, bd, bodyY] = dims[def.body]!
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), bodyMat)
+  const body = new THREE.Mesh(roundedBox(bw, bh, bd, Math.min(bw, bh, bd) * 0.42), bodyMat)
   body.position.y = bodyY
   body.castShadow = true
   bob.add(body)
 
-  const belly = new THREE.Mesh(new THREE.BoxGeometry(bw * 0.6, bh * 0.55, 0.04), bellyMat)
+  const belly = new THREE.Mesh(roundedBox(bw * 0.6, bh * 0.55, 0.05, 0.02), bellyMat)
   belly.position.set(0, bodyY - bh * 0.08, bd / 2 + 0.01)
   bob.add(belly)
 
@@ -141,25 +147,25 @@ export function buildPetRig(def: PetDef): Rig {
   headGroup.position.set(0, bodyY + bh * 0.5 + 0.14, def.body === 'long' ? bd * 0.34 : 0.04)
   bob.add(headGroup)
 
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.32), bodyMat)
+  const head = new THREE.Mesh(roundedBox(0.38, 0.34, 0.36, 0.14), bodyMat)
   head.castShadow = true
   headGroup.add(head)
 
-  const snout = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.1), bellyMat)
-  snout.position.set(0, -0.05, 0.19)
+  const snout = new THREE.Mesh(roundedBox(0.17, 0.13, 0.11, 0.045), bellyMat)
+  snout.position.set(0, -0.05, 0.21)
   headGroup.add(snout)
 
   const eyeMat = toon(0x24201c)
   for (const side of [-1, 1]) {
-    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.04), eyeMat)
-    eye.position.set(side * 0.09, 0.04, 0.17)
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.042, 7, 5), eyeMat)
+    eye.position.set(side * 0.1, 0.05, 0.18)
     headGroup.add(eye)
   }
 
   if (def.ears === 'long') {
     for (const side of [-1, 1]) {
-      const ear = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.28, 0.06), bodyMat)
-      ear.position.set(side * 0.1, 0.26, -0.02)
+      const ear = new THREE.Mesh(roundedBox(0.09, 0.3, 0.07, 0.032), bodyMat)
+      ear.position.set(side * 0.11, 0.28, -0.02)
       ear.rotation.z = side * 0.22
       ear.castShadow = true
       headGroup.add(ear)
@@ -184,7 +190,7 @@ export function buildPetRig(def: PetDef): Rig {
   ] as const) {
     const pivot = new THREE.Group()
     pivot.position.set(sx * bw * 0.32, legY, sz * bd * 0.3)
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, legY, 0.1), bodyMat)
+    const leg = new THREE.Mesh(roundedBox(0.11, legY, 0.11, 0.045), bodyMat)
     leg.position.y = -legY / 2
     leg.castShadow = true
     pivot.add(leg)
@@ -194,7 +200,7 @@ export function buildPetRig(def: PetDef): Rig {
 
   const tail = new THREE.Group()
   tail.position.set(0, bodyY + 0.04, -bd / 2)
-  const tailMesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.22), bodyMat)
+  const tailMesh = new THREE.Mesh(roundedBox(0.09, 0.09, 0.24, 0.04), bodyMat)
   tailMesh.position.z = -0.11
   tail.add(tailMesh)
   bob.add(tail)

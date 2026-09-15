@@ -22,14 +22,16 @@ watch(open, (v) => {
 })
 
 const ROWS = [
-  ['WASD / ←↑→↓', 'Di chuyển'],
+  ['WASD / ←↑→↓', 'Di chuyển theo hướng camera'],
+  ['Giữ chuột phải', 'Xoay camera quanh nhân vật'],
+  ['Q / E', 'Xoay camera bằng bàn phím'],
+  ['Cuộn chuột', 'Kéo camera xa / gần'],
   ['Shift', 'Chạy (tốn sức)'],
   ['1 – 6', 'Chọn dụng cụ'],
   ['Chuột trái / Space', 'Dùng dụng cụ lên ô đang nhắm'],
-  ['Q / E', 'Đổi loại hạt giống'],
+  ['[ / ]', 'Đổi loại hạt giống'],
   ['R', 'Ăn nông sản để hồi sức'],
   ['Tab', 'Bảng pet'],
-  ['Cuộn chuột', 'Phóng to / thu nhỏ'],
 ]
 
 const FLOW = [
@@ -38,6 +40,7 @@ const FLOW = [
   ['🪣', 'Múc nước ở ao rồi tưới — cây khô lớn chậm 3 lần'],
   ['🌾', 'Thu hoạch khi cây đã chín'],
   ['🔴', 'Ném bóng bắt pet hoang, rồi giao việc cho nó làm thay bạn'],
+  ['🎥', 'Hạ camera thấp để ngắm cảnh, nâng cao khi cần canh ô để cuốc'],
 ]
 </script>
 
@@ -69,7 +72,7 @@ const FLOW = [
 
       <dl class="space-y-1">
         <div v-for="([key, desc]) in ROWS" :key="key" class="flex gap-3 text-[12px]">
-          <dt class="w-36 shrink-0 font-mono opacity-60">{{ key }}</dt>
+          <dt class="w-32 shrink-0 font-mono opacity-60">{{ key }}</dt>
           <dd class="opacity-85">{{ desc }}</dd>
         </div>
       </dl>

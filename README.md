@@ -1,7 +1,8 @@
 # Nông trại 2.5D
 
-Web game nông trại góc nhìn nghiêng cố định, đồ hoạ low-poly kiểu *Zelda: Link's
-Awakening remake*, có hệ thống bắt và giao việc cho pet kiểu Palworld.
+Web game nông trại thế giới mở, đồ hoạ low-poly cel-shaded và camera sau lưng
+xoay tự do kiểu *Breath of the Wild*, có hệ thống bắt và giao việc cho pet kiểu
+Palworld.
 
 **Trạng thái: POC chơi đơn, đã chạy được trọn vòng lặp.** Multiplayer chưa làm —
 xem [Lộ trình multiplayer](#lộ-trình-multiplayer).
@@ -19,14 +20,18 @@ Không cần cấu hình gì thêm. Không có Firebase thì game tự lưu vào
 
 | Phím | Tác dụng |
 |---|---|
-| `WASD` / mũi tên | Di chuyển |
+| `WASD` / mũi tên | Di chuyển **theo hướng camera** |
+| Giữ chuột phải + rê | Xoay camera quanh nhân vật |
+| `Q` / `E` | Xoay camera bằng bàn phím |
+| Cuộn chuột | Kéo camera xa / gần |
 | `Shift` | Chạy (tốn sức) |
 | `1`–`6` | Chọn dụng cụ |
 | Chuột trái / `Space` | Dùng dụng cụ lên ô đang nhắm |
-| `Q` / `E` | Đổi loại hạt giống |
+| `[` / `]` | Đổi loại hạt giống |
 | `R` | Ăn nông sản để hồi sức |
 | `Tab` | Bảng pet |
-| Cuộn chuột | Phóng to / thu nhỏ |
+
+Camera hạ thấp để ngắm cảnh, nâng cao (tới 72°) khi cần canh ô để cuốc đất.
 
 Vòng lặp chơi: **cuốc đất → gieo hạt → tưới → thu hoạch → bán → mua hạt tốt hơn.**
 Cây khô vẫn lớn nhưng chậm 3 lần, nên tưới là việc đáng làm chứ không bắt buộc.
@@ -39,7 +44,8 @@ pet (`Tab`) giao việc — pet sẽ tự đi tưới / thu hoạch / nhặt g�
 
 - **Nuxt 4** ở chế độ SPA (`ssr: false`) — game cần WebGL, SSR không đem lại gì.
 - **Tailwind 4** qua plugin Vite, chỉ dùng cho HUD.
-- **three.js** — camera trực giao nghiêng 52°, vật liệu toon 3 bậc.
+- **three.js** — camera phối cảnh quỹ đạo sau lưng, vật liệu toon 3 bậc, địa
+  hình có độ cao, vòm trời gradient và sương mù khí quyển.
 - **Firebase** (tuỳ chọn) — Auth ẩn danh + Firestore để lưu cloud.
 
 ## Kiến trúc
@@ -54,10 +60,15 @@ app/game/                 ← TypeScript thuần, không import 'vue'
 │   ├── Input.ts          Gom input thô, không biết luật chơi
 │   ├── Time.ts           Đồng hồ thế giới, chu kỳ ngày/đêm
 │   └── rng.ts            PRNG có seed + value noise
-├── world/Grid.ts         Lưới tile — nguồn sự thật duy nhất về địa hình
+├── world/
+│   ├── Grid.ts           Lưới tile — nguồn sự thật duy nhất về địa hình
+│   └── Heightmap.ts      Độ cao lưu theo GÓC ô nên đồi không nứt thành mảng
 ├── render/               Tầng three.js, chỉ đọc Grid rồi vẽ
-│   ├── SceneManager.ts   Camera, ánh sáng, các InstancedMesh
-│   ├── TerrainMesh.ts    Địa hình nướng thành 1 mesh vertex-color
+│   ├── SceneManager.ts   Ánh sáng, sương mù, các InstancedMesh
+│   ├── CameraRig.ts      Camera quỹ đạo — nguồn sự thật cho HƯỚNG di chuyển
+│   ├── TerrainMesh.ts    Địa hình + mặt nước, nướng thành mesh vertex-color
+│   ├── Sky.ts            Vòm trời gradient đổi màu theo giờ
+│   ├── GrassField.ts     Thảm cỏ instanced, gió tính trong vertex shader
 │   └── models/           Model dựng bằng code, không có file asset nào
 ├── entities/Player.ts
 ├── systems/              Luật chơi

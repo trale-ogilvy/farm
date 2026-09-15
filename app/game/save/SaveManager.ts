@@ -3,7 +3,7 @@ import { SAVE_VERSION } from '../core/Engine'
 import { initFirebase, currentBundle, type FirebaseConfig } from './firebase'
 
 /** Khoá localStorage. Export để lối lưu khẩn ở beforeunload dùng đúng khoá này. */
-export const LOCAL_SAVE_KEY = 'farm:save:v3'
+export const LOCAL_SAVE_KEY = 'farm:save:v4'
 
 export type SaveBackend = 'firebase' | 'local'
 

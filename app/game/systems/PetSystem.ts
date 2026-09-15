@@ -180,7 +180,7 @@ export class PetSystem {
 
       const speed01 = moved ? 1 : 0
       rt.phase += dts * (7 + speed01 * 4)
-      rt.rig.root.position.set(pet.x, 0, pet.z)
+      rt.rig.root.position.set(pet.x, this.grid.groundY(pet.x, pet.z), pet.z)
       rt.rig.root.rotation.y = pet.facing
       animateWalk(rt.rig, rt.phase, speed01, t + rt.phase)
 

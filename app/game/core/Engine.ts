@@ -16,7 +16,12 @@ const REACH = 3.2
 
 const TOOL_ORDER: ToolKind[] = ['hoe', 'wateringCan', 'seedBag', 'scythe', 'axe', 'ball']
 
-export const SAVE_VERSION = 3
+/** Tốc độ xoay camera bằng phím, quy đổi sang "pixel kéo chuột" mỗi frame. */
+const KEY_TURN_SPEED = 7
+
+// v4: bản đồ đổi từ lưới phẳng 48×48 sang địa hình có độ cao 72×72. Toạ độ ô
+// trong save cũ trỏ sang chỗ khác hẳn, nên phải bỏ chứ không thể nâng cấp.
+export const SAVE_VERSION = 4
 
 function defaultPlayerState(x: number, z: number): PlayerState {
   return {
@@ -80,13 +85,17 @@ export class Engine {
 
     this.pets = new PetSystem(this.grid, this.bus, this.scene.entityLayer)
     this.actions = new FarmActions(this.grid, this.bus)
-    this.catcher = new CatchSystem(this.scene.entityLayer, this.pets, this.bus)
+    this.catcher = new CatchSystem(this.scene.entityLayer, this.pets, this.bus, this.grid)
 
     if (snapshot) this.restore(snapshot)
     else this.pets.spawnWild(7)
 
     this.lastDay = this.clock.day
-    this.scene.snapCameraTo(this.player.state.x, this.player.state.z)
+    this.scene.snapCameraTo(
+      this.player.state.x,
+      this.grid.groundY(this.player.state.x, this.player.state.z),
+      this.player.state.z,
+    )
     this.scene.refreshWorld(this.clock.elapsed)
 
     document.addEventListener('visibilitychange', this.onVisibility)
@@ -152,7 +161,14 @@ export class Engine {
 
     this.handleInput(now)
 
-    this.player.update(dt, this.input, this.grid, this.elapsedSeconds)
+    this.player.update(
+      dt,
+      this.input,
+      this.grid,
+      this.elapsedSeconds,
+      this.scene.rig.forward(),
+      this.scene.rig.right(),
+    )
     if (this.pets.update(dt, this.player, now, this.elapsedSeconds)) this.worldDirty = true
     this.catcher.update(dt)
     if (this.crops.update(dt, this.grid, now)) this.worldDirty = true
@@ -164,8 +180,13 @@ export class Engine {
       this.worldDirty = false
     }
 
-    this.scene.followTarget(this.player.state.x, this.player.state.z, dt)
-    this.scene.updateLighting(this.clock.daylight, this.clock.hour)
+    this.scene.followTarget(
+      this.player.state.x,
+      this.grid.groundY(this.player.state.x, this.player.state.z),
+      this.player.state.z,
+      dt,
+    )
+    this.scene.updateLighting(this.clock.daylight, this.clock.hour, this.elapsedSeconds)
     this.scene.render()
 
     this.input.endFrame()
@@ -189,17 +210,25 @@ export class Engine {
   private handleInput(now: number): void {
     const input = this.input
 
-    if (input.wheel !== 0) this.scene.zoomBy(input.wheel * 0.006)
+    if (input.wheel !== 0) this.scene.zoomBy(input.wheel * 0.01)
+
+    // Xoay camera: giữ chuột phải kéo, hoặc Q/E cho người chơi bàn phím.
+    if (input.rotateDelta.x !== 0 || input.rotateDelta.y !== 0) {
+      this.scene.rotateBy(input.rotateDelta.x, input.rotateDelta.y)
+    }
+    const keyTurn =
+      (input.isDown('KeyE') ? 1 : 0) - (input.isDown('KeyQ') ? 1 : 0)
+    if (keyTurn !== 0) this.scene.rotateBy(keyTurn * KEY_TURN_SPEED, 0)
 
     for (let i = 0; i < TOOL_ORDER.length; i++) {
       if (input.justPressed(`Digit${i + 1}`)) this.setTool(TOOL_ORDER[i]!)
     }
-    if (input.justPressed('KeyQ')) this.cycleSeed(-1)
-    if (input.justPressed('KeyE')) this.cycleSeed(1)
+    if (input.justPressed('BracketLeft')) this.cycleSeed(-1)
+    if (input.justPressed('BracketRight')) this.cycleSeed(1)
     if (input.justPressed('KeyR')) this.eat()
     if (input.justPressed('Tab')) this.bus.emit('ui:open', 'pets')
 
-    this.hovered = this.scene.pickTile(input.pointer.x, input.pointer.y)
+    this.hovered = this.scene.pickTile(input.pointer.x, input.pointer.y, input.pointerMoved)
     const target = this.resolveTarget()
     const tile = this.grid.at(target.x, target.z)
     const tool = this.player.state.tool
@@ -209,7 +238,7 @@ export class Engine {
       tool === 'ball' ? this.catcher.ready : this.actions.isValidTarget(tool, tile, this.player),
     )
 
-    const wantsAct = input.pointerJustDown || input.justPressed('Space')
+    const wantsAct = input.primaryJustDown || input.justPressed('Space')
     if (!wantsAct) return
 
     if (tool === 'ball') {

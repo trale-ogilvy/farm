@@ -9,8 +9,14 @@ export class Input {
 
   /** Toạ độ chuột chuẩn hoá -1..1, dùng thẳng cho Raycaster. */
   pointer = { x: 0, y: 0 }
-  pointerDown = false
-  pointerJustDown = false
+  /** Chuột trái: dùng dụng cụ. Tách khỏi chuột phải để xoay camera không đụng ô. */
+  primaryDown = false
+  primaryJustDown = false
+  secondaryDown = false
+  /** Con trỏ đã di chuyển từ frame trước chưa — dùng để bỏ qua raycast thừa. */
+  pointerMoved = false
+  /** Quãng kéo chuột phải tích luỹ trong frame, đơn vị pixel. */
+  rotateDelta = { x: 0, y: 0 }
   /** Bánh xe cuộn tích luỹ trong frame, dùng để zoom. */
   wheel = 0
 
@@ -21,12 +27,14 @@ export class Input {
     this.el = el
     this.listen(window, 'keydown', (e) => this.onKey(e as KeyboardEvent, true))
     this.listen(window, 'keyup', (e) => this.onKey(e as KeyboardEvent, false))
-    this.listen(window, 'blur', () => this.down.clear())
+    this.listen(window, 'blur', () => {
+      this.down.clear()
+      this.primaryDown = false
+      this.secondaryDown = false
+    })
     this.listen(el, 'pointermove', (e) => this.onPointerMove(e as PointerEvent))
     this.listen(el, 'pointerdown', (e) => this.onPointerDown(e as PointerEvent))
-    this.listen(window, 'pointerup', () => {
-      this.pointerDown = false
-    })
+    this.listen(window, 'pointerup', (e) => this.onPointerUp(e as PointerEvent))
     this.listen(el, 'wheel', (e) => {
       this.wheel += (e as WheelEvent).deltaY
       e.preventDefault()
@@ -59,14 +67,37 @@ export class Input {
 
   private onPointerMove(e: PointerEvent) {
     const rect = this.el.getBoundingClientRect()
-    this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
-    this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1
+    const ny = -((e.clientY - rect.top) / rect.height) * 2 + 1
+    if (nx !== this.pointer.x || ny !== this.pointer.y) this.pointerMoved = true
+    this.pointer.x = nx
+    this.pointer.y = ny
+
+    // Giữ chuột phải và rê = xoay camera. movementX/Y đã tính sẵn quãng kéo nên
+    // không phải tự nhớ vị trí frame trước.
+    if (this.secondaryDown) {
+      this.rotateDelta.x += e.movementX
+      this.rotateDelta.y += e.movementY
+    }
   }
 
   private onPointerDown(e: PointerEvent) {
     this.onPointerMove(e)
-    this.pointerDown = true
-    this.pointerJustDown = true
+    if (e.button === 0) {
+      this.primaryDown = true
+      this.primaryJustDown = true
+    } else if (e.button === 2) {
+      this.secondaryDown = true
+      this.el.setPointerCapture?.(e.pointerId)
+    }
+  }
+
+  private onPointerUp(e: PointerEvent) {
+    if (e.button === 0) this.primaryDown = false
+    if (e.button === 2) {
+      this.secondaryDown = false
+      this.el.releasePointerCapture?.(e.pointerId)
+    }
   }
 
   isDown(code: string): boolean {
@@ -93,7 +124,10 @@ export class Input {
   endFrame(): void {
     this.pressed.clear()
     this.released.clear()
-    this.pointerJustDown = false
+    this.primaryJustDown = false
+    this.pointerMoved = false
+    this.rotateDelta.x = 0
+    this.rotateDelta.y = 0
     this.wheel = 0
   }
 

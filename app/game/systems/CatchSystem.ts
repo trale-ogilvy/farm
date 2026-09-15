@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { EventBus } from '../core/EventBus'
+import type { Grid } from '../world/Grid'
 import type { PetSystem } from './PetSystem'
 import type { Player } from '../entities/Player'
 import { catchChance, petDef } from '../data/pets'
@@ -34,6 +35,7 @@ export class CatchSystem {
     private layer: THREE.Group,
     private pets: PetSystem,
     private bus: EventBus,
+    private grid: Grid,
   ) {}
 
   get ready(): boolean {
@@ -55,6 +57,7 @@ export class CatchSystem {
 
     const sx = player.state.x
     const sz = player.state.z
+    const sy = this.grid.groundY(sx, sz)
     let dx = targetX - sx
     let dz = targetZ - sz
     const dist = Math.hypot(dx, dz)
@@ -67,7 +70,9 @@ export class CatchSystem {
     // Chọn thời gian bay theo tầm, rồi suy ra vận tốc: t tỉ lệ căn bậc hai của
     // khoảng cách cho quỹ đạo trông tự nhiên ở cả tầm gần lẫn xa.
     const flight = 0.34 + Math.sqrt(clamped) * 0.16
-    const startY = 0.95
+    const startY = sy + 0.95
+    // Địa hình có dốc, nên đích đến cũng phải lấy đúng cao độ ở chỗ rơi.
+    const targetY = this.grid.groundY(sx + dx, sz + dz)
 
     const mesh = new THREE.Mesh(this.geo, toon(0xe8e2d2))
     mesh.position.set(sx, startY, sz)
@@ -78,7 +83,7 @@ export class CatchSystem {
       mesh,
       vx: dx / flight,
       vz: dz / flight,
-      vy: (0 - startY) / flight + 0.5 * GRAVITY * flight,
+      vy: (targetY - startY) / flight + 0.5 * GRAVITY * flight,
       age: 0,
       originX: sx,
       originZ: sz,
@@ -106,14 +111,15 @@ export class CatchSystem {
       b.mesh.rotation.x += dts * 9
       b.mesh.rotation.z += dts * 6
 
+      const groundY = this.grid.groundY(b.mesh.position.x, b.mesh.position.z)
       const hit = this.pets.nearestWild(b.mesh.position.x, b.mesh.position.z, HIT_RADIUS)
-      if (hit && b.mesh.position.y < 1.2) {
+      if (hit && b.mesh.position.y < groundY + 1.2) {
         this.resolve(hit, Math.hypot(hit.x - b.originX, hit.z - b.originZ))
         this.destroy(i)
         continue
       }
 
-      if (b.mesh.position.y <= 0.08 || b.age > 4000) {
+      if (b.mesh.position.y <= groundY + 0.08 || b.age > 4000) {
         this.destroy(i)
       }
     }

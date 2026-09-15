@@ -21,8 +21,10 @@ function makeToonRamp(steps = 3): THREE.DataTexture {
 }
 
 export const PALETTE = {
-  grassLight: 0x7cba52,
-  grassDark: 0x67a544,
+  // Bảng màu ngả vàng-ấm theo hướng Breath of the Wild: cỏ không xanh lạnh mà
+  // ngả sang vàng olive, nhờ vậy nền đất nâu và bầu trời xanh nhạt mới bật lên.
+  grassLight: 0xa6d15e,
+  grassDark: 0x639a3e,
   soil: 0x8f6637,
   soilTilled: 0x79512a,
   soilWet: 0x5c3b1d,
@@ -30,12 +32,14 @@ export const PALETTE = {
   /** Gờ luống cày sáng hơn mặt ô để bắt sáng và đọc ra khối nổi. */
   furrowRidge: 0x9a6c3c,
   furrowRidgeWet: 0x6f4725,
-  water: 0x3f8fd0,
-  waterDeep: 0x2f6ea8,
-  path: 0xc2a878,
-  trunk: 0x6b4a2c,
-  foliage: 0x3f8a3a,
-  foliageDark: 0x336f30,
+  water: 0x4fb3d9,
+  waterDeep: 0x2f8ab0,
+  /** Đáy ao nhìn xuyên qua mặt nước trong suốt. */
+  waterBed: 0x4a6b52,
+  path: 0xcdab72,
+  trunk: 0x7a5636,
+  foliage: 0x6aa83f,
+  foliageDark: 0x53893a,
   rock: 0x8d8f93,
   rockDark: 0x6f7176,
   bush: 0x4f9c46,
