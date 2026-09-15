@@ -62,7 +62,14 @@ export default defineNuxtPlugin(() => {
     remember(`module bị invalidate: ${payload?.path ?? '?'} ${payload?.message ?? ''}`)
   })
   hot.on('vite:ws:disconnect', () => {
-    remember('mất kết nối HMR websocket (nối lại thường kéo theo reload)')
+    // Nguyên nhân phổ biến nhất của việc này là DEV SERVER KHỞI ĐỘNG LẠI, chứ
+    // không phải mạng chập chờn. Nuxt restart khi nuxt.config.ts, .env,
+    // app.config.ts hoặc file trong modules/ thay đổi — và mọi trình duyệt đang
+    // mở đều bị tải lại theo.
+    remember(
+      'mất kết nối HMR websocket — xem terminal, nhiều khả năng có dòng ' +
+        '"nuxt.config.ts updated. Restarting Nuxt..."',
+    )
   })
   hot.on('vite:error', (payload: { err?: { message?: string } }) => {
     remember(`lỗi build: ${payload?.err?.message ?? 'không rõ'}`)

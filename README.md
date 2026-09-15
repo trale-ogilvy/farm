@@ -166,12 +166,15 @@ Dự án đã chặn sẵn hai nguyên nhân phổ biến nhất trong `nuxt.con
 - `devtools: { enabled: false }`. Nuxt DevTools nạp `@vue/devtools-core/kit`
   lúc chạy và gây ra đúng vấn đề trên.
 
+Nguyên nhân thường gặp nhất còn lại **không phải lỗi**: Nuxt khởi động lại dev
+server mỗi khi `nuxt.config.ts`, `.env`, `app.config.ts` hoặc file trong
+`modules/` thay đổi, và mọi trình duyệt đang mở đều bị tải lại theo. Trên
+terminal sẽ thấy `nuxt.config.ts updated. Restarting Nuxt...` ngay trước đó.
+
 Nếu vẫn bị, mở console: [`app/plugins/reload-logger.client.ts`](app/plugins/reload-logger.client.ts)
 sẽ in ra trang vừa tải lại sau bao lâu và vì sao. Nó ghi lý do vào
 `sessionStorage` *trước* khi reload, nên lý do vẫn đọc được sau khi console đã
-bị xoá. Vite không báo gì thì thường là dev server tự khởi động lại (sửa
-`nuxt.config.ts`, `.env`, hoặc cài package), mất websocket HMR (máy ngủ, đổi
-mạng), hoặc tiến trình render của Chrome sập.
+bị xoá.
 
 Tiến độ **không mất** khi bị tải lại: `beforeunload` ghi snapshot vào
 localStorage ngay trước khi trang đóng, và chuyển tab cũng kích hoạt lưu. Cái

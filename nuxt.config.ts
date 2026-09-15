@@ -18,11 +18,6 @@ export default defineNuxtConfig({
       // trang tự tải lại ngẫu nhiên khi dev.
       include: ['three', 'firebase/app', 'firebase/auth', 'firebase/firestore'],
     },
-    server: {
-      // Giữ kết nối HMR ổn định: mất websocket rồi nối lại cũng là một đường
-      // dẫn tới full reload.
-      hmr: { overlay: true, timeout: 60000 },
-    },
   },
   app: {
     head: {
