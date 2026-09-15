@@ -4,6 +4,7 @@ import type { Grid } from '../world/Grid'
 import type { Input } from '../core/Input'
 import { animateWalk, buildPlayerRig, type Rig } from '../render/models/character'
 import { toon, PALETTE } from '../render/Materials'
+import { addOutlines } from '../render/Outline'
 
 const RADIUS = 0.3
 const WALK_SPEED = 4.2
@@ -147,6 +148,9 @@ export class Player {
     }
     const mesh = buildToolMesh(this.state.tool)
     if (mesh) {
+      // Dụng cụ được gắn sau khi rig đã dựng xong nên không nằm trong lượt
+      // addOutlines ban đầu; phải viền riêng ở đây.
+      addOutlines(mesh, 0.016)
       this.rig.toolSocket?.add(mesh)
       this.toolMesh = mesh
     }

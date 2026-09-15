@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import type { Grid } from '../world/Grid'
 import { WATER_LEVEL } from '../world/Heightmap'
 import { PALETTE, grassColorAt, soilColorAt, toonVertexColors } from './Materials'
+import { makeInstancedOutline } from './Outline'
 
 const Y_TILLED = 0.05
 
@@ -12,7 +13,8 @@ const Y_TILLED = 0.05
  */
 export class TerrainMesh {
   readonly mesh: THREE.Mesh
-  readonly furrows: THREE.InstancedMesh
+  readonly plots: THREE.InstancedMesh
+  readonly plotsOutline: THREE.InstancedMesh
   readonly water: THREE.Mesh
 
   private geo: THREE.BufferGeometry
@@ -40,14 +42,15 @@ export class TerrainMesh {
     this.mesh.receiveShadow = true
     this.mesh.name = 'terrain'
 
-    this.furrows = new THREE.InstancedMesh(furrowGeometry(), toonVertexColors(), tiles)
-    this.furrows.count = 0
-    this.furrows.receiveShadow = true
-    this.furrows.castShadow = true
+    this.plots = new THREE.InstancedMesh(plotGeometry(), toonVertexColors(), tiles)
+    this.plots.count = 0
+    this.plots.receiveShadow = true
+    this.plots.castShadow = false
     // Bounding sphere của InstancedMesh lấy từ geometry gốc ở origin, không bao
     // các instance -> để mặc định thì cả lớp luống biến mất khi rời góc bản đồ.
-    this.furrows.frustumCulled = false
-    this.furrows.name = 'furrows'
+    this.plots.frustumCulled = false
+    this.plots.name = 'plots'
+    this.plotsOutline = makeInstancedOutline(this.plots, 0.03)
 
     this.water = this.buildWater()
 
@@ -62,11 +65,11 @@ export class TerrainMesh {
 
     for (const tile of grid.tiles) {
       const { x, z } = tile
-      const wet = tile.wetUntil > now
-      const lift = tile.tilled ? Y_TILLED : 0
+      // Ô đã cuốc KHÔNG đổi màu nền nữa: mảng đất là một đĩa bầu dục vẽ đè lên
+      // cỏ (xem `plots`). Tô nâu cả ô sẽ lộ ra lưới vuông, thứ mà phong cách vẽ
+      // tay không bao giờ có.
+      const lift = 0
 
-      // Ô cỏ tô màu theo TỪNG GÓC nên đồi chuyển màu liền mạch; ô canh tác tô
-      // một màu phẳng cho cả 4 góc để luống đất hiện rõ thành ô vuông.
       let flat: number | null = null
       switch (tile.ground) {
         case 'water':
@@ -76,22 +79,10 @@ export class TerrainMesh {
           flat = soilColorAt(x, z, PALETTE.path)
           break
         case 'soil':
-          flat = soilColorAt(
-            x,
-            z,
-            tile.tilled
-              ? wet
-                ? PALETTE.soilTilledWet
-                : PALETTE.soilTilled
-              : wet
-                ? PALETTE.soilWet
-                : PALETTE.soil,
-          )
+          flat = soilColorAt(x, z, PALETTE.soil)
           break
         default:
-          flat = tile.tilled
-            ? soilColorAt(x, z, wet ? PALETTE.soilTilledWet : PALETTE.soilTilled)
-            : null
+          flat = null
       }
 
       // Thứ tự đỉnh phải cho tích có hướng ra +Y, nếu không mặt đất sẽ quay
@@ -135,29 +126,35 @@ export class TerrainMesh {
     this.geo.computeBoundingSphere()
     this.geo.computeBoundingBox()
 
-    this.rebuildFurrows(now)
+    this.rebuildPlots(now)
   }
 
-  private rebuildFurrows(now: number): void {
+  private rebuildPlots(now: number): void {
     let i = 0
     for (const tile of this.grid.tiles) {
       if (!tile.tilled) continue
       const wet = tile.wetUntil > now
+      const h = ((tile.x * 48271) ^ (tile.z * 69621)) >>> 0
+
       this.dummy.position.set(
         tile.x,
         this.grid.heights.tileHeight(tile.x, tile.z) + Y_TILLED,
         tile.z,
       )
-      this.dummy.rotation.y = ((tile.x * 31 + tile.z * 17) % 2) * Math.PI * 0.5
+      // Xoay và méo mỗi đĩa một kiểu để hàng luống không lộ ra là cùng một
+      // khuôn lặp lại — đây là cái làm nó trông như vẽ tay từng mảng.
+      this.dummy.rotation.y = (h % 628) / 100
+      this.dummy.scale.set(1 + ((h >> 8) % 14) / 100, 1, 1 + ((h >> 16) % 14) / 100)
       this.dummy.updateMatrix()
-      this.furrows.setMatrixAt(i, this.dummy.matrix)
-      this.color.setHex(wet ? PALETTE.furrowRidgeWet : PALETTE.furrowRidge)
-      this.furrows.setColorAt(i, this.color)
+      this.plots.setMatrixAt(i, this.dummy.matrix)
+      this.color.setHex(wet ? PALETTE.soilTilledWet : PALETTE.soilTilled)
+      this.plots.setColorAt(i, this.color)
       i++
     }
-    this.furrows.count = i
-    this.furrows.instanceMatrix.needsUpdate = true
-    if (this.furrows.instanceColor) this.furrows.instanceColor.needsUpdate = true
+    this.plots.count = i
+    this.plotsOutline.count = i
+    this.plots.instanceMatrix.needsUpdate = true
+    if (this.plots.instanceColor) this.plots.instanceColor.needsUpdate = true
   }
 
   /**
@@ -214,26 +211,41 @@ export class TerrainMesh {
 
   dispose(): void {
     this.geo.dispose()
-    this.furrows.geometry.dispose()
-    this.furrows.dispose()
+    this.plots.geometry.dispose()
+    this.plots.dispose()
+    this.plotsOutline.dispose()
     this.water.geometry.dispose()
     ;(this.water.material as THREE.Material).dispose()
   }
 }
 
-/** Ba rãnh cày nhỏ nổi lên trên mặt ô, gộp sẵn thành một geometry. */
-function furrowGeometry(): THREE.BufferGeometry {
-  const parts: THREE.BufferGeometry[] = []
-  for (let i = 0; i < 3; i++) {
-    const g = new THREE.BoxGeometry(0.88, 0.1, 0.18)
-    g.translate(0, 0.05, (i - 1) * 0.28)
-    parts.push(g)
+/**
+ * Một mảng đất đã cuốc: đĩa bầu dục dẹt, mép hơi méo.
+ *
+ * Bán kính lớn hơn nửa ô (0.55 > 0.5) nên các mảng kề nhau chồng mép vào nhau
+ * thành một vạt đất liền, thay vì xếp thành lưới ô vuông đều tăm tắp.
+ */
+function plotGeometry(): THREE.BufferGeometry {
+  const geo = new THREE.CylinderGeometry(0.55, 0.5, 0.09, 16, 1)
+  geo.translate(0, 0.045, 0)
+
+  // Bóp méo nhẹ vành đĩa cho ra nét bút tay.
+  const pos = geo.getAttribute('position') as THREE.BufferAttribute
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i)
+    const z = pos.getZ(i)
+    const r = Math.hypot(x, z)
+    if (r < 0.01) continue
+    const wobble = 1 + Math.sin(Math.atan2(z, x) * 3.7) * 0.055
+    pos.setXYZ(i, x * wobble, pos.getY(i), z * wobble)
   }
-  const merged = mergeSimple(parts)
+  pos.needsUpdate = true
+  geo.computeVertexNormals()
+
   // Màu thật lấy từ instanceColor; ở đây chỉ cần attribute tồn tại.
-  const count = merged.getAttribute('position').count
-  merged.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 3).fill(1), 3))
-  return merged
+  const count = geo.getAttribute('position').count
+  geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 3).fill(1), 3))
+  return geo
 }
 
 /**

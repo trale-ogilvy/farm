@@ -19,14 +19,14 @@ function toggle(id: Panel) {
     <button
       v-for="b in BUTTONS"
       :key="b.id"
-      class="panel relative grid h-12 w-12 place-items-center transition hover:bg-white/10"
+      class="panel relative grid h-12 w-12 place-items-center transition hover:bg-ink/8"
       :title="b.label"
       @click="toggle(b.id)"
     >
       <span class="text-xl leading-none">{{ b.icon }}</span>
       <span
         v-if="b.id === 'pets' && pets.length"
-        class="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-lime-500 text-[10px] font-bold text-black"
+        class="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-clay text-[10px] font-bold text-paper"
       >
         {{ pets.length }}
       </span>

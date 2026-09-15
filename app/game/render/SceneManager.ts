@@ -9,11 +9,13 @@ import { GrassField } from './GrassField'
 import { buildPropGeometry } from './models/props'
 import { buildCropGeometry } from './models/crops'
 import { toonVertexColors } from './Materials'
+import { INK, makeInstancedOutline } from './Outline'
 
 const PROP_KINDS: PropKind[] = ['tree', 'rock', 'bush', 'stump']
 
 interface InstancedGroup {
   mesh: THREE.InstancedMesh
+  outline: THREE.InstancedMesh
   capacity: number
 }
 
@@ -67,15 +69,18 @@ export class SceneManager {
     this.scene.fog = new THREE.FogExp2(0xbfe4f5, 0.016)
     this.scene.add(this.sky.mesh)
 
-    this.ambient = new THREE.AmbientLight(0xffffff, 0.55)
+    // Ánh sáng môi trường mạnh + mặt trời yếu: bề mặt gần như không đổ gradient,
+    // hình khối đọc ra nhờ NÉT MỰC chứ không nhờ sáng tối. Đây là điểm khác cốt
+    // lõi so với cel-shading thường, vốn vẫn dựa vào chuyển sáng để tả khối.
+    this.ambient = new THREE.AmbientLight(0xffffff, 0.92)
     this.scene.add(this.ambient)
 
     // Ánh sáng bán cầu trời-đất: cho vùng khuất sáng ngả xanh lá hắt lên từ cỏ,
     // thay vì xám chết như khi chỉ có ambient trắng.
-    this.hemi = new THREE.HemisphereLight(0xbfe6ff, 0x6d8a4a, 0.7)
+    this.hemi = new THREE.HemisphereLight(0xdcf0ff, 0x9bb06e, 0.45)
     this.scene.add(this.hemi)
 
-    this.sun = new THREE.DirectionalLight(0xfff2d0, 1.5)
+    this.sun = new THREE.DirectionalLight(0xfff6e4, 0.85)
     this.sun.castShadow = true
     this.sun.shadow.mapSize.set(2048, 2048)
     this.sun.shadow.camera.near = 1
@@ -86,7 +91,12 @@ export class SceneManager {
     this.scene.add(this.sun.target)
 
     this.terrain = new TerrainMesh(grid)
-    this.scene.add(this.terrain.mesh, this.terrain.furrows, this.terrain.water)
+    this.scene.add(
+      this.terrain.mesh,
+      this.terrain.plotsOutline,
+      this.terrain.plots,
+      this.terrain.water,
+    )
 
     this.grass = new GrassField(grid)
     this.scene.add(this.grass.mesh)
@@ -153,18 +163,18 @@ export class SceneManager {
     )
 
     const dusk = Math.pow(1 - daylight, 2)
-    this.sun.intensity = 0.25 + daylight * 1.3
-    this.sun.color.setHSL(0.1 - dusk * 0.05, 0.35 + dusk * 0.4, 0.74)
+    this.sun.intensity = 0.3 + daylight * 0.62
+    this.sun.color.setHSL(0.11 - dusk * 0.05, 0.3 + dusk * 0.35, 0.8)
 
     // Nền đêm cố ý không tối hẳn: vẫn phải nhìn rõ luống đất để chơi tiếp được.
-    this.ambient.intensity = 0.48 + daylight * 0.3
-    this.hemi.intensity = 0.42 + daylight * 0.45
+    this.ambient.intensity = 0.72 + daylight * 0.24
+    this.hemi.intensity = 0.34 + daylight * 0.2
 
     const horizon = this.sky.update(daylight, this.camera)
     const fog = this.scene.fog as THREE.FogExp2
     fog.color.copy(horizon)
     // Đêm sương dày hơn chút, tầm nhìn co lại cho có không khí.
-    fog.density = 0.011 + (1 - daylight) * 0.007
+    fog.density = 0.007 + (1 - daylight) * 0.005
 
     this.terrain.update(elapsedSeconds)
     this.grass.update(elapsedSeconds)
@@ -218,7 +228,7 @@ export class SceneManager {
     }
     this.cursor.geometry.getAttribute('position').needsUpdate = true
     ;(this.cursor.material as THREE.LineBasicMaterial).color.setHex(
-      valid ? 0xffffff : 0xff6b5e,
+      valid ? INK : 0xd9564a,
     )
   }
 
@@ -243,8 +253,9 @@ export class SceneManager {
     const capacity = Math.max(16, 1 << Math.ceil(Math.log2(Math.max(1, needed))))
     const geo = group?.mesh.geometry ?? geoFactory()
     if (group) {
-      this.scene.remove(group.mesh)
+      this.scene.remove(group.mesh, group.outline)
       group.mesh.dispose()
+      group.outline.dispose()
     }
     const mesh = new THREE.InstancedMesh(geo, toonVertexColors(), capacity)
     mesh.castShadow = true
@@ -252,8 +263,12 @@ export class SceneManager {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
     mesh.frustumCulled = false
-    this.scene.add(mesh)
-    group = { mesh, capacity }
+
+    // Viền dùng chung instanceMatrix nên tự khớp; chỉ phải nhớ đồng bộ `count`.
+    const outline = makeInstancedOutline(mesh, key.includes(':') ? 0.016 : 0.045)
+    this.scene.add(outline, mesh)
+
+    group = { mesh, outline, capacity }
     map.set(key, group)
     return group
   }
@@ -279,6 +294,7 @@ export class SceneManager {
       if (!tile.prop) continue
       const group = this.props.get(tile.prop)!
       const i = cursorIdx.get(tile.prop) ?? 0
+      group.outline.count = i + 1
       // Xoay và phóng to nhẹ theo toạ độ để rừng không trông như copy-paste.
       const h = ((tile.x * 73856093) ^ (tile.z * 19349663)) >>> 0
       this.dummy.position.set(
@@ -294,7 +310,10 @@ export class SceneManager {
       cursorIdx.set(tile.prop, i + 1)
     }
 
-    for (const group of this.props.values()) group.mesh.instanceMatrix.needsUpdate = true
+    for (const group of this.props.values()) {
+      group.mesh.instanceMatrix.needsUpdate = true
+      group.outline.count = group.mesh.count
+    }
   }
 
   private rebuildCrops(): void {
@@ -307,7 +326,10 @@ export class SceneManager {
       list.push({ x: tile.x, z: tile.z })
     }
 
-    for (const group of this.crops.values()) group.mesh.count = 0
+    for (const group of this.crops.values()) {
+      group.mesh.count = 0
+      group.outline.count = 0
+    }
 
     for (const [key, list] of buckets) {
       const [typeId, stageStr] = key.split(':')
@@ -331,6 +353,7 @@ export class SceneManager {
         group.mesh.setMatrixAt(i, this.dummy.matrix)
       })
       group.mesh.count = list.length
+      group.outline.count = list.length
       group.mesh.instanceMatrix.needsUpdate = true
     }
   }
@@ -347,6 +370,7 @@ export class SceneManager {
     for (const g of [...this.props.values(), ...this.crops.values()]) {
       g.mesh.geometry.dispose()
       g.mesh.dispose()
+      g.outline.dispose()
     }
     this.cursor.geometry.dispose()
     ;(this.cursor.material as THREE.Material).dispose()

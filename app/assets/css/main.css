@@ -3,19 +3,22 @@
 @theme {
   --font-display: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
 
-  --color-farm-soil: #6b4b2a;
-  --color-farm-grass: #6fb04a;
-  --color-farm-sky: #8fd3f4;
-  --color-farm-ink: #2b1d12;
-  --color-farm-parchment: #f4e4c1;
+  /* Mực nâu ấm, không phải đen — trùng với màu viền của model trong Outline.ts */
+  --color-ink: #4a3728;
+  --color-ink-soft: #7a6552;
+  --color-paper: #fbf6e9;
+  --color-paper-deep: #f0e7d2;
+  --color-sage: #9cb46c;
+  --color-clay: #c98a5e;
 }
 
 html, body, #__nuxt {
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #0e1a12;
+  background: #b2c880;
   font-family: var(--font-display);
+  color: var(--color-ink);
   -webkit-user-select: none;
   user-select: none;
 }
@@ -25,19 +28,65 @@ canvas {
   touch-action: none;
 }
 
-/* Khung kính dùng chung cho mọi bảng HUD. */
+/*
+ * Khung giấy dùng chung cho mọi bảng HUD: nền kem, viền mực mảnh, bo tròn sâu.
+ * Cùng ngôn ngữ với nét mực quanh model trong cảnh 3D, nên UI và thế giới trông
+ * như được vẽ bằng một cây bút.
+ */
 @utility panel {
-  border-radius: 0.75rem;
-  background: color-mix(in oklab, #1b2a20 78%, transparent);
-  backdrop-filter: blur(8px);
+  border-radius: 1.25rem;
+  background: var(--color-paper);
+  border: 2px solid color-mix(in oklab, var(--color-ink) 16%, transparent);
   box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.08) inset,
-    0 8px 24px rgb(0 0 0 / 0.35);
-  color: var(--color-farm-parchment);
+    0 2px 0 color-mix(in oklab, var(--color-ink) 8%, transparent),
+    0 10px 24px color-mix(in oklab, var(--color-ink) 16%, transparent);
+  color: var(--color-ink);
 }
 
-/* Thanh cuộn mảnh cho các bảng bên phải. */
+/* Ô lõm bên trong bảng giấy — dùng thay cho bg-black/20 kiểu giao diện tối. */
+@utility inset-card {
+  border-radius: 0.9rem;
+  background: var(--color-paper-deep);
+  border: 1.5px solid color-mix(in oklab, var(--color-ink) 10%, transparent);
+}
+
+/*
+ * Vân giấy phủ toàn màn hình.
+ *
+ * Đây là thứ rẻ nhất mà lại đóng góp nhiều nhất cho cảm giác "vẽ tay": nhiễu
+ * feTurbulence nhân đè lên khung hình phá vỡ những mảng màu phẳng tuyệt đối của
+ * đồ hoạ 3D, giống như màu nước ăn vào thớ giấy. Chạy hoàn toàn ở tầng CSS nên
+ * không tốn gì của pipeline WebGL.
+ */
+@utility paper-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  /* 0.3 là ngưỡng: cao hơn thì khung hình đục và màu bị bẩn, thấp hơn thì
+     không còn cảm giác thớ giấy. */
+  opacity: 0.3;
+  background-image: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'>\
+<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/>\
+<feColorMatrix type='saturate' values='0'/></filter>\
+<rect width='220' height='220' filter='url(%23n)' opacity='0.42'/></svg>");
+  background-size: 220px 220px;
+}
+
+/* Bốn góc tối nhẹ, như mép tranh màu nước thấm đậm hơn. */
+@utility paper-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 52%,
+    color-mix(in oklab, var(--color-ink) 16%, transparent) 100%
+  );
+}
+
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgb(255 255 255 / 0.2) transparent;
+  scrollbar-color: color-mix(in oklab, var(--color-ink) 30%, transparent) transparent;
 }

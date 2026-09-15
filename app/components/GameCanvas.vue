@@ -99,7 +99,7 @@ defineExpose({ persist })
     <Transition name="fade">
       <div
         v-if="loading"
-        class="absolute inset-0 grid place-items-center bg-[#12241a] text-farm-parchment"
+        class="absolute inset-0 grid place-items-center bg-paper text-ink"
       >
         <div class="text-center">
           <div class="mb-4 text-4xl">🌱</div>
@@ -110,7 +110,7 @@ defineExpose({ persist })
 
     <div
       v-if="loadError"
-      class="absolute inset-0 grid place-items-center bg-[#2a1414] p-8 text-center text-red-100"
+      class="absolute inset-0 grid place-items-center bg-paper p-8 text-center text-[#8c3a2e]"
     >
       <div>
         <p class="mb-2 text-xl font-bold">Không khởi động được game</p>

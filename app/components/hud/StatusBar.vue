@@ -7,7 +7,7 @@ const { hud, clockText, day, isNight, saveState, backend, harvestCount } = useGa
 const energyPct = computed(() => (hud.energy / hud.maxEnergy) * 100)
 const waterPct = computed(() => (hud.water / hud.maxWater) * 100)
 const energyTone = computed(() =>
-  energyPct.value > 50 ? 'bg-lime-400' : energyPct.value > 20 ? 'bg-amber-400' : 'bg-red-500',
+  energyPct.value > 50 ? 'bg-sage' : energyPct.value > 20 ? 'bg-clay' : 'bg-[#c05a4a]',
 )
 </script>
 
@@ -26,7 +26,7 @@ const energyTone = computed(() =>
         <span>Sức</span>
         <span class="tabular-nums">{{ Math.round(hud.energy) }}</span>
       </div>
-      <div class="h-2 overflow-hidden rounded-full bg-black/25">
+      <div class="h-2.5 overflow-hidden rounded-full bg-ink/12">
         <div
           class="h-full rounded-full transition-[width] duration-200"
           :class="energyTone"
@@ -38,9 +38,9 @@ const energyTone = computed(() =>
         <span>Nước</span>
         <span class="tabular-nums">{{ hud.water }}/{{ hud.maxWater }}</span>
       </div>
-      <div class="h-2 overflow-hidden rounded-full bg-black/25">
+      <div class="h-2.5 overflow-hidden rounded-full bg-ink/12">
         <div
-          class="h-full rounded-full bg-sky-400 transition-[width] duration-200"
+          class="h-full rounded-full bg-[#7fb8cf] transition-[width] duration-200"
           :style="{ width: `${waterPct}%` }"
         />
       </div>
@@ -52,11 +52,13 @@ const energyTone = computed(() =>
       <span class="tabular-nums opacity-80">🧺 {{ harvestCount }}</span>
     </div>
 
-    <div class="flex items-center gap-1 pl-1 text-[10px] uppercase tracking-widest opacity-50">
+    <div
+      class="panel flex w-fit items-center gap-1 px-2.5 py-1 text-[10px] uppercase tracking-widest opacity-75"
+    >
       <span>{{ backend === 'firebase' ? '☁️ cloud' : '💾 local' }}</span>
       <span v-if="saveState === 'saving'">· đang lưu…</span>
-      <span v-else-if="saveState === 'saved'" class="text-lime-300">· đã lưu</span>
-      <span v-else-if="saveState === 'error'" class="text-red-300">· lỗi lưu</span>
+      <span v-else-if="saveState === 'saved'" class="text-sage">· đã lưu</span>
+      <span v-else-if="saveState === 'error'" class="text-[#c05a4a]">· lỗi lưu</span>
     </div>
   </div>
 </template>

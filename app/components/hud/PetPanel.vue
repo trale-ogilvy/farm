@@ -48,7 +48,7 @@ function tint(hex: number): string {
       v-if="panel === 'pets'"
       class="panel absolute right-3 top-3 flex max-h-[calc(100%-9rem)] w-80 flex-col"
     >
-      <header class="flex items-center justify-between border-b border-white/15 px-4 py-3">
+      <header class="flex items-center justify-between border-b border-ink/12 px-4 py-3">
         <h2 class="text-sm font-bold uppercase tracking-widest">
           Pet của bạn ({{ pets.length }})
         </h2>
@@ -65,11 +65,11 @@ function tint(hex: number): string {
         <article
           v-for="pet in pets"
           :key="pet.uid"
-          class="mb-2 rounded-lg bg-black/20 p-3 last:mb-0"
+          class="mb-2 inset-card p-3 last:mb-0"
         >
           <div class="flex items-center gap-2">
             <span
-              class="h-6 w-6 shrink-0 rounded-md ring-1 ring-white/25"
+              class="h-6 w-6 shrink-0 rounded-md ring-1 ring-ink/20"
               :style="{ background: tint(pet.def.bodyColor) }"
             />
             <div class="min-w-0 flex-1">
@@ -84,7 +84,7 @@ function tint(hex: number): string {
               </div>
             </div>
             <button
-              class="shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider opacity-40 transition hover:bg-red-500/25 hover:opacity-100"
+              class="shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider opacity-40 transition hover:bg-[#c05a4a]/25 hover:opacity-100"
               title="Thả về tự nhiên"
               @click="release(pet.uid)"
             >
@@ -92,9 +92,9 @@ function tint(hex: number): string {
             </button>
           </div>
 
-          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-black/30">
+          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-ink/12">
             <div
-              class="h-full rounded-full bg-amber-400 transition-[width] duration-300"
+              class="h-full rounded-full bg-clay transition-[width] duration-300"
               :style="{ width: `${(pet.stamina / pet.maxStamina) * 100}%` }"
             />
           </div>
@@ -106,8 +106,8 @@ function tint(hex: number): string {
               class="rounded px-2 py-1 text-[11px] transition"
               :class="
                 pet.job === job
-                  ? 'bg-lime-500/30 ring-1 ring-lime-300'
-                  : 'bg-white/5 hover:bg-white/15'
+                  ? 'bg-sage/40 ring-1 ring-sage'
+                  : 'bg-ink/5 hover:bg-ink/12'
               "
               @click="assign(pet.uid, job)"
             >

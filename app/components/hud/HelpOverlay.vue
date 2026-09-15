@@ -48,7 +48,7 @@ const FLOW = [
   <div class="absolute bottom-4 left-3">
     <button
       v-if="!open"
-      class="panel grid h-10 w-10 place-items-center text-lg transition hover:bg-white/10"
+      class="panel grid h-10 w-10 place-items-center text-lg transition hover:bg-ink/8"
       title="Hướng dẫn"
       @click="open = true"
     >
@@ -63,7 +63,7 @@ const FLOW = [
         </button>
       </div>
 
-      <ol class="mb-3 space-y-1.5 border-b border-white/12 pb-3">
+      <ol class="mb-3 space-y-1.5 border-b border-ink/12 pb-3">
         <li v-for="([icon, text], i) in FLOW" :key="i" class="flex gap-2 text-[13px]">
           <span class="w-5 shrink-0 text-center">{{ icon }}</span>
           <span class="opacity-85">{{ text }}</span>

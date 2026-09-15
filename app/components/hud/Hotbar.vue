@@ -42,8 +42,8 @@ function badge(tool: ToolKind): string | null {
           class="relative flex w-16 flex-col items-center rounded-md px-2 py-1.5 text-[11px] transition"
           :class="
             hud.selectedSeed === id
-              ? 'bg-lime-500/30 ring-1 ring-lime-300'
-              : 'hover:bg-white/10'
+              ? 'bg-sage/40 ring-1 ring-sage'
+              : 'hover:bg-ink/8'
           "
           :disabled="!seedCounts[id]"
           @click="pickSeed(id)"
@@ -65,8 +65,8 @@ function badge(tool: ToolKind): string | null {
         class="relative grid h-14 w-14 place-items-center rounded-md transition"
         :class="
           hud.tool === tool.id
-            ? 'bg-amber-400/30 ring-2 ring-amber-300'
-            : 'hover:bg-white/10'
+            ? 'bg-clay/35 ring-2 ring-clay'
+            : 'hover:bg-ink/8'
         "
         :title="tool.label"
         @click="pick(tool.id)"

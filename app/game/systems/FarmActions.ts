@@ -74,8 +74,9 @@ export class FarmActions {
     if (tile.tilled) return fail('Đã cuốc rồi')
     if (!this.spend(player, ENERGY.hoe)) return fail('Hết sức rồi, đi ngủ đi')
 
+    // Chỉ đánh dấu `tilled`; KHÔNG đổi `ground` sang 'soil'. Mảng đất được vẽ
+    // thành đĩa bầu dục đè lên cỏ, nên đổi màu cả ô sẽ lộ ra lưới vuông.
     tile.tilled = true
-    tile.ground = 'soil'
     this.touch(tile)
     return { ok: true }
   }

@@ -64,7 +64,7 @@ export class GrassField {
       dummy.rotation.set(0, rand() * Math.PI * 2, 0)
       // Nhân vật cao ~1.25 đơn vị; túm cỏ phải nằm quanh 0.2-0.35 thì mới ra
       // đồng cỏ. Để cao hơn là nhân vật lội trong rừng gai.
-      dummy.scale.setScalar(0.75 + rand() * 0.55)
+      dummy.scale.setScalar(0.6 + rand() * 0.45)
       dummy.updateMatrix()
       this.mesh.setMatrixAt(i, dummy.matrix)
       // Biến thiên màu nhẹ giữa các túm để đồng cỏ không trông như in ra hàng loạt.
@@ -87,7 +87,9 @@ export class GrassField {
     for (const tile of grid.tiles) {
       if (tile.ground !== 'grass' || tile.prop || tile.tilled) continue
       const d = density(tile.x * 0.08, tile.z * 0.08)
-      const count = d > 0.62 ? 3 : d > 0.38 ? 2 : 1
+      // Thưa hẳn: phong cách vẽ tay để nền là một mảng màu sạch, cỏ chỉ là
+      // vài chấm điểm xuyết cho đỡ chết cứng khi camera di chuyển.
+      const count = d > 0.78 ? 1 : 0
       for (let k = 0; k < count; k++) {
         if (spots.length >= MAX_TUFTS) return spots
         const x = tile.x + (rand() - 0.5) * 0.95

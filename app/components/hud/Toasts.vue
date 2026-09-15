@@ -4,9 +4,9 @@ import { useGameStore } from '~/composables/useGameStore'
 const { toasts } = useGameStore()
 
 const TONE = {
-  good: 'border-lime-400/50 text-lime-100',
-  bad: 'border-red-400/50 text-red-100',
-  info: 'border-white/25 text-farm-parchment',
+  good: 'border-sage text-ink',
+  bad: 'border-[#c05a4a] text-ink',
+  info: 'border-ink/25 text-ink',
 } as const
 </script>
 

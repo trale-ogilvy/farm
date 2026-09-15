@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import type { PetDef } from '../../types'
 import { PALETTE, blobShadowMaterial, toon } from '../Materials'
 import { roundedBox } from './geometry'
+import { addOutlines } from '../Outline'
 
 /**
  * Rig tối giản: chỉ đủ các khớp cần cho chu kỳ đi bộ và animation làm việc.
@@ -37,51 +38,60 @@ function blobShadow(size: number): THREE.Mesh {
   mesh.rotation.x = -Math.PI / 2
   mesh.position.y = 0.02
   mesh.renderOrder = 1
+  // Bóng giả là mặt phẳng mờ; viền quanh nó thành một khung vuông đen lơ lửng.
+  mesh.userData.noOutline = true
   return mesh
 }
 
 export function buildPlayerRig(): Rig {
   const root = new THREE.Group()
   root.name = 'player'
-  root.add(blobShadow(1.0))
+  root.add(blobShadow(1.1))
 
   const bob = new THREE.Group()
   root.add(bob)
 
-  const torso = box(0.44, 0.44, 0.32, PALETTE.shirt, 0.38)
-  torso.position.y = 0.63
-  bob.add(torso)
+  // Thân là MỘT khối tròn duy nhất, không chia ngực/bụng/hông. Nhân vật kiểu
+  // cozy đọc ra được nhờ bóng dáng tổng thể và nét mực, nên càng ít mảnh càng
+  // rõ; chia nhỏ ra chỉ thêm nét thừa cắt ngang người.
+  const body = box(0.54, 0.78, 0.46, PALETTE.shirt, 0.48)
+  body.position.y = 0.46
+  bob.add(body)
+
+  const belt = box(0.57, 0.09, 0.49, PALETTE.hair, 0.3)
+  belt.position.y = 0.34
+  bob.add(belt)
 
   const headGroup = new THREE.Group()
-  headGroup.position.y = 0.92
+  headGroup.position.y = 0.88
   bob.add(headGroup)
 
-  const head = box(0.44, 0.4, 0.4, PALETTE.skin, 0.42)
+  const head = box(0.4, 0.3, 0.38, PALETTE.skin, 0.45)
   headGroup.add(head)
 
-  const hair = box(0.46, 0.14, 0.42, PALETTE.hair, 0.4)
-  hair.position.y = 0.16
-  headGroup.add(hair)
+  // Mũ cố tình to quá khổ: đây là chi tiết duy nhất phá vỡ bóng dáng hình trứng,
+  // nên nó gánh toàn bộ việc nhận diện nhân vật từ phía sau.
+  const crown = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.27, 0.31, 0.24, 14),
+    toon(PALETTE.hat),
+  )
+  crown.position.y = 0.26
+  crown.castShadow = true
+  headGroup.add(crown)
 
-  const hat = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.26, 7), toon(PALETTE.hat))
-  hat.position.y = 0.3
-  hat.castShadow = true
-  headGroup.add(hat)
-
-  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.04, 9), toon(PALETTE.hat))
-  brim.position.y = 0.18
+  const brim = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.46, 0.46, 0.05, 18),
+    toon(PALETTE.hat),
+  )
+  brim.position.y = 0.15
+  brim.castShadow = true
   headGroup.add(brim)
-
-  // Mũi nhỏ để nhận ra nhân vật đang quay mặt về hướng nào.
-  const nose = box(0.09, 0.09, 0.07, PALETTE.skin, 0.35)
-  nose.position.set(0, -0.02, 0.22)
-  headGroup.add(nose)
 
   const mkArm = (side: number) => {
     const pivot = new THREE.Group()
-    pivot.position.set(side * 0.28, 0.8, 0)
-    const arm = box(0.14, 0.38, 0.14, PALETTE.skin, 0.45)
-    arm.position.y = -0.19
+    pivot.position.set(side * 0.29, 0.66, 0)
+    const arm = box(0.15, 0.32, 0.16, PALETTE.shirt, 0.48)
+    arm.position.y = -0.16
     pivot.add(arm)
     bob.add(pivot)
     return pivot
@@ -90,20 +100,20 @@ export function buildPlayerRig(): Rig {
   const armR = mkArm(1)
 
   const toolSocket = new THREE.Group()
-  toolSocket.position.set(0, -0.36, 0.06)
+  toolSocket.position.set(0, -0.3, 0.06)
   armR.add(toolSocket)
 
   const mkLeg = (side: number) => {
     const pivot = new THREE.Group()
-    pivot.position.set(side * 0.11, 0.42, 0)
-    const leg = box(0.16, 0.42, 0.16, PALETTE.pants, 0.42)
-    leg.position.y = -0.21
+    pivot.position.set(side * 0.13, 0.2, 0)
+    const leg = box(0.17, 0.22, 0.19, PALETTE.pants, 0.46)
+    leg.position.y = -0.11
     pivot.add(leg)
     bob.add(pivot)
     return pivot
   }
 
-  return {
+  const rig: Rig = {
     root,
     bob,
     head: headGroup,
@@ -112,6 +122,8 @@ export function buildPlayerRig(): Rig {
     legs: [mkLeg(-1), mkLeg(1)],
     toolSocket,
   }
+  addOutlines(root, 0.026)
+  return rig
 }
 
 export function buildPetRig(def: PetDef): Rig {
@@ -205,7 +217,9 @@ export function buildPetRig(def: PetDef): Rig {
   tail.add(tailMesh)
   bob.add(tail)
 
-  return { root, bob, head: headGroup, legs, tail }
+  const rig: Rig = { root, bob, head: headGroup, legs, tail }
+  addOutlines(root, 0.022)
+  return rig
 }
 
 /**

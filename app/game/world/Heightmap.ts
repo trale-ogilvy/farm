@@ -114,9 +114,9 @@ export function generateHeights(opts: HeightGenOptions): Heightmap {
 
       // Ba tần số chồng nhau: đồi lớn, gò nhỏ, và gợn mặt đất.
       let h =
-        (n1(wx * 0.045, wz * 0.045) - 0.5) * 5.2 +
-        (n2(wx * 0.11, wz * 0.11) - 0.5) * 1.7 +
-        (n3(wx * 0.31, wz * 0.31) - 0.5) * 0.45
+        (n1(wx * 0.045, wz * 0.045) - 0.5) * 3.0 +
+        (n2(wx * 0.11, wz * 0.11) - 0.5) * 0.95 +
+        (n3(wx * 0.31, wz * 0.31) - 0.5) * 0.25
 
       // Vách bao quanh bản đồ. Dùng luỹ thừa bậc 3 chứ không phải smoothstep:
       // phần trong thoải tới mức đi được, phần ngoài dựng đứng vượt ngưỡng dốc

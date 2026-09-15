@@ -157,10 +157,11 @@ export function generateWorld(opts: WorldGenOptions = DEFAULT_GEN): Grid {
     // thì cảnh đẹp hơn hẳn, và luống cày người chơi tự tạo mới nổi bật lên.
     if (inFarm) continue
 
-    // Sườn dốc là đá trơ, không mọc gì được.
+    // Sườn dốc là đá trơ. Thưa thôi — rải dày thì sườn đồi thành một vạt lấm
+    // tấm, đúng thứ mà phong cách vẽ tay tránh: nền phải là mảng màu sạch.
     if (slope > MAX_WALKABLE_STEP) {
       tile.ground = 'grass'
-      if (rand() < 0.12) {
+      if (rand() < 0.035) {
         tile.prop = 'rock'
         tile.propHp = 2
       }
@@ -177,10 +178,10 @@ export function generateWorld(opts: WorldGenOptions = DEFAULT_GEN): Grid {
     // Vành đai quanh nông trại: rải bụi và đá nhỏ cho đỡ trống, nhưng không có
     // cây to — cây to ở gần sẽ che mất tầm nhìn của camera sau lưng.
     if (fromCentre < half + 6) {
-      if (jitter < 0.07) {
+      if (jitter < 0.035) {
         tile.prop = 'bush'
         tile.propHp = 1
-      } else if (jitter < 0.09) {
+      } else if (jitter < 0.045) {
         tile.prop = 'rock'
         tile.propHp = 2
       }
@@ -195,10 +196,10 @@ export function generateWorld(opts: WorldGenOptions = DEFAULT_GEN): Grid {
         tile.prop = 'bush'
         tile.propHp = 1
       }
-    } else if (density < 0.32 && jitter < 0.05) {
+    } else if (density < 0.32 && jitter < 0.02) {
       tile.prop = 'rock'
       tile.propHp = 2
-    } else if (jitter < 0.025) {
+    } else if (jitter < 0.012) {
       tile.prop = 'bush'
       tile.propHp = 1
     }

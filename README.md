@@ -1,8 +1,8 @@
 # Nông trại 2.5D
 
-Web game nông trại thế giới mở, đồ hoạ low-poly cel-shaded và camera sau lưng
-xoay tự do kiểu *Breath of the Wild*, có hệ thống bắt và giao việc cho pet kiểu
-Palworld.
+Web game nông trại thế giới mở với đồ hoạ **cozy vẽ tay** — nét mực nâu quanh
+mọi vật thể, màu pastel, vân giấy phủ toàn khung hình — trên nền camera sau lưng
+xoay tự do, kèm hệ thống bắt và giao việc cho pet kiểu Palworld.
 
 **Trạng thái: POC chơi đơn, đã chạy được trọn vòng lặp.** Multiplayer chưa làm —
 xem [Lộ trình multiplayer](#lộ-trình-multiplayer).
@@ -44,8 +44,9 @@ pet (`Tab`) giao việc — pet sẽ tự đi tưới / thu hoạch / nhặt g�
 
 - **Nuxt 4** ở chế độ SPA (`ssr: false`) — game cần WebGL, SSR không đem lại gì.
 - **Tailwind 4** qua plugin Vite, chỉ dùng cho HUD.
-- **three.js** — camera phối cảnh quỹ đạo sau lưng, vật liệu toon 3 bậc, địa
-  hình có độ cao, vòm trời gradient và sương mù khí quyển.
+- **three.js** — camera phối cảnh quỹ đạo sau lưng, địa hình có độ cao, vòm trời
+  gradient, và phong cách vẽ tay dựng từ ba thành phần: viền mực vỏ-lộn-ngược,
+  ramp toon 2 bậc (mảng sáng phẳng + mảng bóng), và vân giấy ở tầng CSS.
 - **Firebase** (tuỳ chọn) — Auth ẩn danh + Firestore để lưu cloud.
 
 ## Kiến trúc
@@ -67,6 +68,7 @@ app/game/                 ← TypeScript thuần, không import 'vue'
 │   ├── SceneManager.ts   Ánh sáng, sương mù, các InstancedMesh
 │   ├── CameraRig.ts      Camera quỹ đạo — nguồn sự thật cho HƯỚNG di chuyển
 │   ├── TerrainMesh.ts    Địa hình + mặt nước, nướng thành mesh vertex-color
+│   ├── Outline.ts        Viền mực — vỏ lộn ngược, dùng chung cho mesh & instanced
 │   ├── Sky.ts            Vòm trời gradient đổi màu theo giờ
 │   ├── GrassField.ts     Thảm cỏ instanced, gió tính trong vertex shader
 │   └── models/           Model dựng bằng code, không có file asset nào
@@ -85,6 +87,23 @@ app/game/                 ← TypeScript thuần, không import 'vue'
 `useGameStore` **chép** dữ liệu từ engine sang ref của Vue mỗi khi có event, thay
 vì bọc `reactive()` quanh state engine. Engine ghi toạ độ nhân vật 60 lần/giây;
 nếu để Vue theo dõi, mỗi lần ghi sẽ kích hoạt effect và tụt khung hình.
+
+### Ba thành phần tạo nên phong cách vẽ tay
+
+Không có file texture nào; toàn bộ vẻ "vẽ tay" đến từ ba thứ rời nhau:
+
+1. **Viền mực** ([Outline.ts](app/game/render/Outline.ts)) — vẽ lại vật thể phình
+   ra dọc pháp tuyến, chỉ hiện mặt sau. Cho nét dày đều tuyệt đối như nét bút,
+   trong khi hậu kỳ dò biên depth/normal lại cho nét mảnh dần khi vật ở xa.
+2. **Ramp toon 2 bậc** ([Materials.ts](app/game/render/Materials.ts)) — bề mặt
+   chỉ có đúng hai mức sáng, nên hình khối đọc ra nhờ NÉT chứ không nhờ chuyển
+   sáng. Ánh sáng môi trường được đẩy cao và mặt trời hạ thấp để củng cố điều đó.
+3. **Vân giấy** ([main.css](app/assets/css/main.css)) — nhiễu `feTurbulence` nhân
+   đè lên khung hình ở tầng CSS, phá vỡ những mảng màu phẳng tuyệt đối của đồ
+   hoạ 3D. Không tốn gì của pipeline WebGL.
+
+Luống đất cố ý là **đĩa bầu dục chồng mép nhau** chứ không phải ô vuông — lưới
+vuông đều tăm tắp là thứ lộ ra ngay rằng đây là đồ hoạ máy tính.
 
 ### Vì sao không có file model nào
 

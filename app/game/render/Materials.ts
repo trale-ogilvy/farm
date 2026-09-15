@@ -5,11 +5,15 @@ import { valueNoise2D } from '../core/rng'
  * Một gradient 3 bậc làm rampa cho MeshToonMaterial — đây là thứ tạo ra mảng
  * sáng/tối phẳng đặc trưng của Zelda thay vì đổ bóng mượt kiểu PBR.
  */
-function makeToonRamp(steps = 3): THREE.DataTexture {
+function makeToonRamp(steps = 2): THREE.DataTexture {
+  // Hai bậc, không phải ba: bề mặt được chiếu sáng thành MỘT mảng màu phẳng
+  // duy nhất, còn vùng khuất là một mảng thứ hai rõ rệt. Đây là điều tạo ra
+  // cảm giác "tô màu phẳng rồi vẽ bóng đè lên" của tranh vẽ tay, thay vì độ
+  // chuyển sáng liên tục của đồ hoạ 3D thông thường.
+  const LEVELS = [0.62, 1.0]
   const data = new Uint8Array(steps * 4)
   for (let i = 0; i < steps; i++) {
-    // Bậc thấp nhất không xuống quá tối, giữ màu vẫn tươi trong bóng râm.
-    const v = Math.round(255 * (0.45 + (0.55 * i) / (steps - 1)))
+    const v = Math.round(255 * (LEVELS[Math.min(i, LEVELS.length - 1)] ?? 1))
     data.set([v, v, v, 255], i * 4)
   }
   const tex = new THREE.DataTexture(data, steps, 1, THREE.RGBAFormat)
@@ -21,39 +25,37 @@ function makeToonRamp(steps = 3): THREE.DataTexture {
 }
 
 export const PALETTE = {
-  // Bảng màu ngả vàng-ấm theo hướng Breath of the Wild: cỏ không xanh lạnh mà
-  // ngả sang vàng olive, nhờ vậy nền đất nâu và bầu trời xanh nhạt mới bật lên.
-  grassLight: 0xa6d15e,
-  grassDark: 0x639a3e,
-  soil: 0x8f6637,
-  soilTilled: 0x79512a,
-  soilWet: 0x5c3b1d,
-  soilTilledWet: 0x503219,
-  /** Gờ luống cày sáng hơn mặt ô để bắt sáng và đọc ra khối nổi. */
-  furrowRidge: 0x9a6c3c,
-  furrowRidgeWet: 0x6f4725,
-  water: 0x4fb3d9,
-  waterDeep: 0x2f8ab0,
+  // Bảng màu pastel, độ bão hoà thấp. Tranh màu nước không dùng màu nguyên
+  // chất; mọi thứ đều ngả về xám một chút, và độ tương phản giữa các vật nằm ở
+  // nét mực chứ không ở màu.
+  grassLight: 0xb2c880,
+  grassDark: 0x9cb46c,
+  soil: 0xa9835a,
+  soilTilled: 0x9c7850,
+  soilWet: 0x7e5f3f,
+  soilTilledWet: 0x74563a,
+  water: 0x8fc6d8,
+  waterDeep: 0x6fadc4,
   /** Đáy ao nhìn xuyên qua mặt nước trong suốt. */
-  waterBed: 0x4a6b52,
-  path: 0xcdab72,
-  trunk: 0x7a5636,
-  foliage: 0x6aa83f,
-  foliageDark: 0x53893a,
-  rock: 0x8d8f93,
-  rockDark: 0x6f7176,
-  bush: 0x4f9c46,
-  skin: 0xf2c79b,
-  shirt: 0x3d7fd6,
-  pants: 0x35406b,
-  hair: 0x4a2f1d,
-  hat: 0xd8b352,
+  waterBed: 0x86976a,
+  path: 0xc9b58f,
+  trunk: 0x9a7350,
+  foliage: 0x8fb968,
+  foliageDark: 0x7aa456,
+  rock: 0xbab5a9,
+  rockDark: 0xa19c92,
+  bush: 0x88b262,
+  skin: 0xf6ddc0,
+  shirt: 0xf4efe2,
+  pants: 0xc9a87e,
+  hair: 0xa1764e,
+  hat: 0x3f5d87,
 } as const
 
 let ramp: THREE.DataTexture | null = null
 
 function toonRamp(): THREE.DataTexture {
-  if (!ramp) ramp = makeToonRamp(3)
+  if (!ramp) ramp = makeToonRamp(2)
   return ramp
 }
 
