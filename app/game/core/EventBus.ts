@@ -10,7 +10,11 @@ export interface GameEvents {
   'tile:changed': { x: number; z: number }
   'catch:result': { petName: string; success: boolean }
   'save:state': 'saving' | 'saved' | 'error'
-  'ui:open': 'none' | 'pets' | 'shop' | 'pokedex'
+  'ui:open': 'none' | 'pets' | 'shop' | 'pokedex' | 'backpack'
+  /** Mở bảng chọn hạt — chỉ bắn khi người chơi thực sự định gieo xuống luống. */
+  'ui:seedPicker': void
+  /** Esc: lớp UI tự quyết đóng cái gì trước (bảng chọn hạt trước ba lô). */
+  'ui:escape': void
 }
 
 type Handler<K extends keyof GameEvents> = (payload: GameEvents[K]) => void

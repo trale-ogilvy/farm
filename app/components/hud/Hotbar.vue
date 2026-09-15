@@ -1,28 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref } from 'vue'
 import { useGameStore } from '~/composables/useGameStore'
-import { CROPS, CROP_IDS } from '~/game/data/crops'
+import { TOOL_INFO, isTool } from '~/game/data/items'
+import { QUICK_SLOTS } from '~/game/core/Engine'
 import type { ToolKind } from '~/game/types'
 
-const { engine, hud, seedCounts, ballCount } = useGameStore()
+const { engine, hud, ballCount, pushToast } = useGameStore()
 
-const TOOLS: Array<{ id: ToolKind; icon: string; label: string }> = [
-  { id: 'hoe', icon: '⛏️', label: 'Cuốc' },
-  { id: 'wateringCan', icon: '🪣', label: 'Bình tưới' },
-  { id: 'seedBag', icon: '🌱', label: 'Gieo hạt' },
-  { id: 'scythe', icon: '🌾', label: 'Thu hoạch' },
-  { id: 'axe', icon: '🪓', label: 'Rìu' },
-  { id: 'ball', icon: '🔴', label: 'Bóng bắt pet' },
-]
+/** Ô đang được kéo vật phẩm lên trên — chỉ để tô sáng, không giữ dữ liệu. */
+const hoverSlot = ref(-1)
 
-const showSeeds = computed(() => hud.tool === 'seedBag')
-
-function pick(tool: ToolKind) {
-  engine.value?.setTool(tool)
-}
-
-function pickSeed(id: string) {
-  engine.value?.selectSeed(id)
+function pick(index: number) {
+  const tool = hud.quickSlots[index]
+  if (tool) engine.value?.setTool(tool)
 }
 
 function badge(tool: ToolKind): string | null {
@@ -30,68 +20,64 @@ function badge(tool: ToolKind): string | null {
   if (tool === 'wateringCan') return String(hud.water)
   return null
 }
+
+function onDrop(index: number, ev: DragEvent) {
+  hoverSlot.value = -1
+  const id = ev.dataTransfer?.getData('text/plain') ?? ''
+  // Chỉ dụng cụ mới đặt được vào đây. Hạt giống và nông sản đi theo hành động
+  // chứ không theo thứ đang cầm, nên một ô "hạt cà rốt" sẽ không có nghĩa gì.
+  if (!isTool(id)) {
+    pushToast('Chỉ dụng cụ mới đặt được vào ô nhanh', 'bad')
+    return
+  }
+  engine.value?.setQuickSlot(index, id)
+  engine.value?.setTool(id)
+}
+
+/** Chuột phải để gỡ dụng cụ khỏi ô — dãy phím thưa cũng là một lựa chọn. */
+function clear(index: number) {
+  if (hud.quickSlots[index]) engine.value?.setQuickSlot(index, null)
+}
 </script>
 
 <template>
-  <div class="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
-    <Transition name="slide">
-      <div v-if="showSeeds" class="panel flex gap-1 p-1.5">
-        <button
-          v-for="id in CROP_IDS"
-          :key="id"
-          class="relative flex w-16 flex-col items-center rounded-md px-2 py-1.5 text-[11px] transition"
-          :class="
-            hud.selectedSeed === id
-              ? 'bg-sage/40 ring-1 ring-sage'
-              : 'hover:bg-ink/8'
-          "
-          :disabled="!seedCounts[id]"
-          @click="pickSeed(id)"
-        >
-          <span
-            class="mb-0.5 h-3 w-3 rounded-full"
-            :style="{ background: `#${CROPS[id]!.colorFruit.toString(16).padStart(6, '0')}` }"
-          />
-          <span :class="{ 'opacity-35': !seedCounts[id] }">{{ CROPS[id]!.name }}</span>
-          <span class="tabular-nums opacity-60">×{{ seedCounts[id] ?? 0 }}</span>
-        </button>
-      </div>
-    </Transition>
+  <div class="absolute bottom-4 left-4 flex items-end gap-2.5">
+    <HudPlayerAvatar />
 
     <div class="panel flex gap-1 p-1.5">
       <button
-        v-for="(tool, i) in TOOLS"
-        :key="tool.id"
+        v-for="i in QUICK_SLOTS"
+        :key="i"
         class="relative grid h-14 w-14 place-items-center rounded-md transition"
-        :class="
-          hud.tool === tool.id
+        :class="[
+          hud.quickSlots[i - 1] && hud.tool === hud.quickSlots[i - 1]
             ? 'bg-clay/35 ring-2 ring-clay'
-            : 'hover:bg-ink/8'
+            : 'hover:bg-ink/8',
+          hoverSlot === i - 1 ? 'ring-2 ring-sage' : '',
+          !hud.quickSlots[i - 1] ? 'inset-card' : '',
+        ]"
+        :title="
+          hud.quickSlots[i - 1]
+            ? TOOL_INFO[hud.quickSlots[i - 1]!].name + ' — chuột phải để gỡ'
+            : 'Ô trống — kéo dụng cụ từ ba lô vào'
         "
-        :title="tool.label"
-        @click="pick(tool.id)"
+        @click="pick(i - 1)"
+        @contextmenu.prevent="clear(i - 1)"
+        @dragover.prevent="hoverSlot = i - 1"
+        @dragleave="hoverSlot = hoverSlot === i - 1 ? -1 : hoverSlot"
+        @drop.prevent="onDrop(i - 1, $event)"
       >
-        <span class="text-2xl leading-none">{{ tool.icon }}</span>
-        <span class="absolute left-1 top-0.5 text-[10px] opacity-50">{{ i + 1 }}</span>
+        <span v-if="hud.quickSlots[i - 1]" class="text-2xl leading-none">
+          {{ TOOL_INFO[hud.quickSlots[i - 1]!].icon }}
+        </span>
+        <span class="absolute left-1 top-0.5 text-[10px] opacity-50">{{ i }}</span>
         <span
-          v-if="badge(tool.id)"
+          v-if="hud.quickSlots[i - 1] && badge(hud.quickSlots[i - 1]!)"
           class="absolute bottom-0.5 right-1 text-[10px] font-bold tabular-nums opacity-75"
         >
-          {{ badge(tool.id) }}
+          {{ badge(hud.quickSlots[i - 1]!) }}
         </span>
       </button>
     </div>
   </div>
 </template>
-
-<style scoped>
-.slide-enter-active,
-.slide-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-.slide-enter-from,
-.slide-leave-to {
-  opacity: 0;
-  transform: translateY(6px);
-}
-</style>

@@ -15,6 +15,8 @@ useHead({ title: 'Nông trại' })
     <HudStatusBar />
     <HudSideButtons />
     <HudHotbar />
+    <HudBackpack />
+    <HudSeedPicker />
     <HudPetPanel />
     <HudShopPanel />
     <HudToasts />

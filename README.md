@@ -51,18 +51,43 @@ hotbar thành bộ lọc: cầm rìu thì cả bản đồ chỉ còn cây để
 | `Q` / `E` | Xoay camera bằng bàn phím |
 | Cuộn chuột | Kéo camera xa / gần |
 | `Shift` | Chạy (tốn sức) |
-| `1`–`6` | Chọn dụng cụ |
+| `1`–`6` | Chọn dụng cụ ở dãy ô nhanh |
 | Chuột trái / `Space` | Dùng dụng cụ lên ô đang nhắm |
-| `[` / `]` | Đổi loại hạt giống |
+| `B` | Ba lô |
 | `R` | Ăn nông sản để hồi sức |
 | `Tab` | Bảng pet |
+| `Esc` | Đóng bảng đang mở |
 
 Camera hạ thấp để ngắm cảnh, nâng cao (tới 72°) khi cần canh ô để cuốc đất.
+
+## Ba lô và dãy ô nhanh
+
+Góc dưới trái là avatar nhân vật (vòng ngoài là thanh sức) kèm sáu ô dụng cụ
+nhanh ứng với phím `1`–`6`. Bấm avatar hoặc phím `B` để mở ba lô, chia tab
+*Tất cả / Dụng cụ / Hạt giống / Nông sản / Vật liệu*.
+
+**Chỉ dụng cụ đặt được vào ô nhanh.** Hạt giống và nông sản đi theo *hành động*
+chứ không theo thứ đang cầm, nên một ô "hạt cà rốt" sẽ không có nghĩa gì. Kéo
+được mọi thứ ra khỏi ba lô nhưng thả nhầm thì ô nhanh từ chối kèm lời giải
+thích — khoá ngay ở chỗ cầm lên thì người chơi chỉ thấy giao diện đơ, không học
+được luật. Chuột phải lên một ô để gỡ dụng cụ ra.
+
+## Gieo hạt: chọn một lần, gieo cả ruộng
+
+Cầm túi hạt bấm `F` trên luống trống thì **mở bảng chọn hạt** ở góc dưới phải,
+không phải gieo một ô. Chọn một loại là gieo kín mọi luống trống, trái sang
+phải rồi trên xuống dưới, cho tới khi hết luống hoặc hết hạt. Hết luống trống
+thì bảng không mở nữa.
+
+Một luống hai chục ô mà bắt bấm `F` hai chục lần thì phần lặp lại chiếm hết chỗ
+của phần thú vị. Việc gieo hàng loạt vẫn đi qua `FarmActions.perform` từng ô,
+nên mọi luật (đủ hạt, đủ sức, ô hợp lệ) chỉ nằm ở một chỗ và gieo cả ruộng
+không thể lệch khỏi gieo một ô.
 
 Vòng lặp chơi: **cuốc đất → gieo hạt → tưới → thu hoạch → bán → mua hạt tốt hơn.**
 Cây khô vẫn lớn nhưng chậm 3 lần, nên tưới là việc đáng làm chứ không bắt buộc.
 
-Bắt pet: chọn bóng (`6`), ném vào pet hoang. Pet hoang chỉ bỏ chạy khi bạn cầm
+Bắt pet: chọn bóng, ném vào pet hoang. Pet hoang chỉ bỏ chạy khi bạn cầm
 bóng. Ném trượt thì pet mệt đi, lần sau dễ bắt hơn. Bắt được rồi thì vào bảng
 pet (`Tab`) giao việc — pet sẽ tự đi tưới / thu hoạch / nhặt gỗ mà không cần bạn.
 

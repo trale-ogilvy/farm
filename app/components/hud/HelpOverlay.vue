@@ -23,32 +23,32 @@ watch(open, (v) => {
 
 const ROWS = [
   ['F', 'Làm việc trước mặt — xem bong bóng trên mục tiêu'],
-  ['1 rồi F', 'Cuốc đất mới (cuốc là việc duy nhất phải chọn dụng cụ)'],
+  ['1 – 6', 'Chọn dụng cụ ở dãy ô nhanh'],
   ['WASD / ←↑→↓', 'Di chuyển theo hướng camera'],
   ['Giữ chuột phải', 'Xoay camera quanh nhân vật'],
   ['Q / E', 'Xoay camera bằng bàn phím'],
   ['Cuộn chuột', 'Kéo camera xa / gần'],
   ['Shift', 'Chạy (tốn sức)'],
-  ['1 – 6', 'Chọn dụng cụ'],
   ['Chuột trái / Space', 'Dùng dụng cụ đang cầm (lối chơi bằng chuột)'],
-  ['[ / ]', 'Đổi loại hạt giống'],
+  ['B', 'Ba lô — kéo dụng cụ xuống ô nhanh'],
   ['R', 'Ăn nông sản để hồi sức'],
   ['Tab', 'Bảng pet'],
+  ['Esc', 'Đóng bảng đang mở'],
 ]
 
 const FLOW = [
   ['🅕', 'Đứng cạnh mục tiêu là hiện bong bóng — bấm F làm đúng việc đó'],
-  ['⛏️', 'Muốn mở đất mới thì cầm cuốc (phím 1) rồi bấm F'],
-  ['🌱', 'Gieo hạt lên luống đã cuốc'],
+  ['🎒', 'Mỗi việc cần đúng dụng cụ: cầm sai thì không hiện bong bóng'],
+  ['⛏️', 'Cầm cuốc (phím 1) rồi bấm F để mở luống mới'],
+  ['🌱', 'Cầm túi hạt bấm F trên luống trống — chọn một loại là gieo kín ruộng'],
   ['🪣', 'Múc nước ở ao rồi tưới — cây khô lớn chậm 3 lần'],
   ['🌾', 'Thu hoạch khi cây đã chín'],
   ['🔴', 'Ném bóng bắt pet hoang, rồi giao việc cho nó làm thay bạn'],
-  ['🎥', 'Hạ camera thấp để ngắm cảnh, nâng cao khi cần canh ô để cuốc'],
 ]
 </script>
 
 <template>
-  <div class="absolute bottom-4 left-3">
+  <div class="absolute bottom-4 left-1/2 -translate-x-1/2">
     <button
       v-if="!open"
       class="panel grid h-10 w-10 place-items-center text-lg transition hover:bg-ink/8"

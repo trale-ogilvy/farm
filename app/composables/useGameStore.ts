@@ -2,6 +2,7 @@ import { computed, reactive, ref, shallowRef } from 'vue'
 import type { Engine } from '~/game/core/Engine'
 import type { InventoryItem, JobKind, PetDef, ToolKind } from '~/game/types'
 import { petDef } from '~/game/data/pets'
+import { TOOL_IDS, isTool, itemInfo } from '~/game/data/items'
 
 export interface PetView {
   uid: string
@@ -21,7 +22,7 @@ export interface Toast {
   kind: 'info' | 'good' | 'bad'
 }
 
-export type Panel = 'none' | 'pets' | 'shop' | 'pokedex'
+export type Panel = 'none' | 'pets' | 'shop' | 'pokedex' | 'backpack'
 
 /**
  * Trạng thái UI phản chiếu từ engine. Cố ý KHÔNG để Vue theo dõi dữ liệu game
@@ -38,6 +39,7 @@ const hud = reactive({
   water: 0,
   maxWater: 20,
   tool: 'hoe' as ToolKind,
+  quickSlots: [] as Array<ToolKind | null>,
   selectedSeed: 'turnip',
   inventory: [] as InventoryItem[],
 })
@@ -47,6 +49,10 @@ const clockText = ref('06:00')
 const day = ref(1)
 const isNight = ref(false)
 const panel = ref<Panel>('none')
+/** Bảng chọn hạt nằm ngoài `panel`: nó nhỏ, ở góc, và mở chồng lên ba lô được. */
+const seedPicker = ref(false)
+/** Số luống trống — quyết định bảng chọn hạt còn cho chọn hay không. */
+const emptyPlots = ref(0)
 const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
 const backend = ref<'firebase' | 'local'>('local')
 const ready = ref(false)
@@ -70,6 +76,14 @@ export function useGameStore() {
     next.bus.on('ui:open', (p) => {
       panel.value = panel.value === p ? 'none' : p
     })
+    next.bus.on('ui:seedPicker', () => {
+      seedPicker.value = true
+    })
+    // Esc đóng từ trong ra ngoài: bảng chọn hạt trước, rồi mới tới bảng lớn.
+    next.bus.on('ui:escape', () => {
+      if (seedPicker.value) seedPicker.value = false
+      else if (panel.value !== 'none') panel.value = 'none'
+    })
     next.bus.on('toast', ({ text, kind }) => pushToast(text, kind ?? 'info'))
     ready.value = true
   }
@@ -79,6 +93,8 @@ export function useGameStore() {
     ready.value = false
     pets.value = []
     toasts.value = []
+    seedPicker.value = false
+    panel.value = 'none'
   }
 
   function syncPlayer() {
@@ -91,7 +107,11 @@ export function useGameStore() {
     hud.water = s.water
     hud.maxWater = s.maxWater
     hud.tool = s.tool
+    hud.quickSlots = [...s.quickSlots]
     hud.selectedSeed = s.selectedSeed
+    emptyPlots.value = e.emptyPlots()
+    // Gieo hết ruộng thì bảng chọn hạt không còn việc gì để làm.
+    if (emptyPlots.value === 0) seedPicker.value = false
     // Chép mảng để Vue thấy tham chiếu mới; danh sách túi đồ rất ngắn.
     hud.inventory = s.inventory.filter((i) => i.count > 0).map((i) => ({ ...i }))
   }
@@ -163,14 +183,31 @@ export function useGameStore() {
       .reduce((sum, i) => sum + i.count, 0),
   )
 
+  /** Ba lô gom dụng cụ (luôn có đủ bộ) với vật phẩm đếm được trong túi. */
+  const backpackItems = computed(() => {
+    const counts = new Map(hud.inventory.map((i) => [i.id, i.count]))
+    const tools = TOOL_IDS.map((id) => ({
+      ...itemInfo(id),
+      count: counts.get(id) ?? null,
+      tool: id,
+    }))
+    const rest = hud.inventory
+      .filter((i) => !isTool(i.id))
+      .map((i) => ({ ...itemInfo(i.id), count: i.count, tool: null }))
+    return [...tools, ...rest]
+  })
+
   return {
     engine,
     hud,
+    backpackItems,
     pets,
     clockText,
     day,
     isNight,
     panel,
+    seedPicker,
+    emptyPlots,
     saveState,
     backend,
     ready,

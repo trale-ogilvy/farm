@@ -116,6 +116,12 @@ export interface PlayerState {
   z: number
   facing: number
   tool: ToolKind
+  /**
+   * Sáu ô dụng cụ nhanh, ứng với phím 1–6. Chỉ chứa dụng cụ: hạt giống và nông
+   * sản không phải thứ "cầm trên tay", chúng đi theo hành động chứ không theo
+   * lựa chọn của người chơi.
+   */
+  quickSlots: Array<ToolKind | null>
   /** Hạt giống đang chọn trong túi hạt. */
   selectedSeed: string
   coins: number

@@ -280,12 +280,14 @@ function tileAction(tile: Tile, player: Player, now: number): TileAction | null 
   }
 
   if (tile.tilled) {
-    const seed = s.inventory.find((i) => i.id === `seed:${s.selectedSeed}`)
+    // Xét CÒN HẠT NÀO KHÔNG, không xét loại đang chọn: bấm F ở đây chỉ mở bảng
+    // chọn hạt, mà bảng đó cho chọn bất kỳ loại nào trong túi.
+    const hasSeed = s.inventory.some((i) => i.id.startsWith('seed:') && i.count > 0)
     return {
       kind: 'plant',
       lift: 0.5,
-      enabled: !!seed && seed.count > 0,
-      reason: `Hết hạt ${cropDef(s.selectedSeed).name}`,
+      enabled: hasSeed,
+      reason: 'Hết sạch hạt giống — ra cửa hàng mua thêm',
     }
   }
 

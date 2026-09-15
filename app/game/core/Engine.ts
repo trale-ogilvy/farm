@@ -15,7 +15,14 @@ import { Input } from './Input'
 /** Tầm với của dụng cụ tính bằng ô. Ngoài tầm thì tự đánh vào ô trước mặt. */
 const REACH = 3.2
 
+/** Số ô dụng cụ nhanh, cố định để khớp với dãy phím 1–6. */
+export const QUICK_SLOTS = 6
+
 const TOOL_ORDER: ToolKind[] = ['hoe', 'wateringCan', 'seedBag', 'scythe', 'axe', 'ball']
+
+function defaultQuickSlots(): Array<ToolKind | null> {
+  return TOOL_ORDER.slice(0, QUICK_SLOTS)
+}
 
 /** Tốc độ xoay camera bằng phím, quy đổi sang "pixel kéo chuột" mỗi frame. */
 const KEY_TURN_SPEED = 7
@@ -53,6 +60,7 @@ function defaultPlayerState(x: number, z: number): PlayerState {
     z,
     facing: 0,
     tool: 'hoe',
+    quickSlots: defaultQuickSlots(),
     selectedSeed: 'turnip',
     coins: 120,
     energy: 100,
@@ -248,13 +256,15 @@ export class Engine {
       (input.isDown('KeyE') ? 1 : 0) - (input.isDown('KeyQ') ? 1 : 0)
     if (keyTurn !== 0) this.scene.rotateBy(keyTurn * KEY_TURN_SPEED, 0)
 
-    for (let i = 0; i < TOOL_ORDER.length; i++) {
-      if (input.justPressed(`Digit${i + 1}`)) this.setTool(TOOL_ORDER[i]!)
+    for (let i = 0; i < QUICK_SLOTS; i++) {
+      if (!input.justPressed(`Digit${i + 1}`)) continue
+      const tool = this.player.state.quickSlots[i]
+      if (tool) this.setTool(tool)
     }
-    if (input.justPressed('BracketLeft')) this.cycleSeed(-1)
-    if (input.justPressed('BracketRight')) this.cycleSeed(1)
     if (input.justPressed('KeyR')) this.eat()
     if (input.justPressed('Tab')) this.bus.emit('ui:open', 'pets')
+    if (input.justPressed('KeyB')) this.bus.emit('ui:open', 'backpack')
+    if (input.justPressed('Escape')) this.bus.emit('ui:escape', undefined)
 
     // Mục tiêu ngữ cảnh tính lại mỗi frame: người chơi xoay người là đổi mục
     // tiêu ngay, không có độ trễ.
@@ -279,6 +289,14 @@ export class Engine {
     if (tool === 'ball') {
       const aim = this.hovered ?? target
       this.catcher.throwAt(this.player, aim.x, aim.z)
+      return
+    }
+
+    // Túi hạt không gieo từng ô kể cả khi chơi bằng chuột — nếu không sẽ có hai
+    // lối gieo cho cùng một việc, và loại hạt gieo ra phụ thuộc vào lối nào.
+    if (tool === 'seedBag') {
+      this.player.faceTowards(target.x, target.z)
+      this.requestSeedPicker()
       return
     }
 
@@ -335,6 +353,14 @@ export class Engine {
 
     if (!target.enabled) {
       if (target.reason) this.bus.emit('toast', { text: target.reason, kind: 'bad' })
+      return
+    }
+
+    // Gieo hạt KHÔNG làm từng ô một: bấm F trên luống trống là mở bảng chọn
+    // hạt, chọn xong thì cả ruộng được gieo. Một luống 20 ô mà bắt bấm F 20
+    // lần thì phần lặp lại chiếm hết chỗ của phần thú vị.
+    if (target.kind === 'plant') {
+      this.requestSeedPicker()
       return
     }
 
@@ -409,21 +435,110 @@ export class Engine {
     this.bus.emit('player:changed', undefined)
   }
 
-  cycleSeed(dir: number): void {
-    const owned = CROP_IDS.filter((id) =>
-      this.player.state.inventory.some((i) => i.id === `seed:${id}` && i.count > 0),
-    )
-    const list = owned.length > 0 ? owned : CROP_IDS
-    const idx = list.indexOf(this.player.state.selectedSeed)
-    const next = list[(idx + dir + list.length) % list.length]!
-    this.player.state.selectedSeed = next
-    this.bus.emit('player:changed', undefined)
-    this.bus.emit('toast', { text: `Hạt: ${cropDef(next).name}`, kind: 'info' })
-  }
-
   selectSeed(id: string): void {
     this.player.state.selectedSeed = id
     this.bus.emit('player:changed', undefined)
+  }
+
+  // ------------------------------------------------------------ ô dụng cụ nhanh
+
+  /**
+   * Gán dụng cụ vào ô nhanh. Chỉ nhận `ToolKind` — hạt giống và nông sản không
+   * phải thứ cầm trên tay, chúng theo hành động chứ không theo lựa chọn.
+   *
+   * Dụng cụ đã nằm ở ô khác thì ĐỔI CHỖ chứ không nhân đôi: hai ô cùng một cái
+   * cuốc chỉ tổ làm dãy phím khó nhớ.
+   */
+  setQuickSlot(index: number, tool: ToolKind | null): boolean {
+    if (index < 0 || index >= QUICK_SLOTS) return false
+    const slots = this.player.state.quickSlots
+    if (tool) {
+      const old = slots.indexOf(tool)
+      if (old === index) return true
+      if (old >= 0) slots[old] = slots[index] ?? null
+    }
+    slots[index] = tool
+    this.bus.emit('player:changed', undefined)
+    return true
+  }
+
+  /** Đặt dụng cụ vào ô trống đầu tiên; hết chỗ thì ghi đè ô đang chọn. */
+  quickEquip(tool: ToolKind): void {
+    const slots = this.player.state.quickSlots
+    if (slots.includes(tool)) {
+      this.setTool(tool)
+      return
+    }
+    const free = slots.indexOf(null)
+    const idx = free >= 0 ? free : Math.max(0, slots.indexOf(this.player.state.tool))
+    this.setQuickSlot(idx, tool)
+    this.setTool(tool)
+  }
+
+  // ---------------------------------------------------------------- gieo hạt
+
+  /** Số luống đã cuốc mà chưa có cây — điều kiện để bảng chọn hạt còn ý nghĩa. */
+  emptyPlots(): number {
+    let n = 0
+    for (const t of this.grid.tiles) {
+      if (t.tilled && !t.crop && !t.prop) n++
+    }
+    return n
+  }
+
+  /** Mở bảng chọn hạt, hoặc nói rõ vì sao không mở được. */
+  requestSeedPicker(): void {
+    if (this.emptyPlots() === 0) {
+      this.bus.emit('toast', { text: 'Không còn luống trống — cuốc thêm đất đi', kind: 'bad' })
+      return
+    }
+    this.bus.emit('ui:seedPicker', undefined)
+  }
+
+  /**
+   * Gieo loại hạt đã chọn xuống MỌI luống trống, trái sang phải rồi trên xuống
+   * dưới — đúng thứ tự mắt người đọc một mảnh ruộng.
+   *
+   * Vẫn đi qua `FarmActions.perform` từng ô thay vì tự sửa tile: mọi luật (đủ
+   * hạt, đủ sức, ô hợp lệ) nằm ở một chỗ duy nhất, nên gieo hàng loạt không thể
+   * lệch khỏi gieo một ô.
+   */
+  sowAll(cropId: string): number {
+    this.player.state.selectedSeed = cropId
+    let planted = 0
+    let stop: string | null = null
+
+    for (let z = 0; z < this.grid.height && !stop; z++) {
+      for (let x = 0; x < this.grid.width; x++) {
+        const tile = this.grid.at(x, z)
+        if (!tile || !tile.tilled || tile.crop || tile.prop) continue
+        const result = this.actions.perform('seedBag', x, z, this.player)
+        if (result.ok) {
+          planted++
+          continue
+        }
+        // Hết hạt hoặc hết sức thì dừng hẳn; các lý do khác chỉ là ô đó không
+        // hợp lệ, còn ruộng thì vẫn gieo tiếp được.
+        if (result.reason?.startsWith('Hết')) {
+          stop = result.reason
+          break
+        }
+      }
+    }
+
+    if (planted > 0) {
+      this.worldDirty = true
+      this.player.playAction('plant', 'seedBag')
+      const def = cropDef(cropId)
+      this.bus.emit('toast', { text: `Gieo ${planted} luống ${def.name}`, kind: 'good' })
+    }
+    if (stop) this.bus.emit('toast', { text: stop, kind: 'bad' })
+    else if (planted === 0) {
+      this.bus.emit('toast', { text: 'Không còn luống trống', kind: 'info' })
+    }
+
+    this.bus.emit('player:changed', undefined)
+    return planted
   }
 
   /** Ăn nông sản để hồi sức giữa ngày. */
@@ -540,6 +655,7 @@ export class Engine {
       gameTime: this.clock.elapsed,
       player: {
         ...this.player.state,
+        quickSlots: [...this.player.state.quickSlots],
         inventory: this.player.state.inventory.map((i) => ({ ...i })),
       },
       pets: this.pets.pets.map((p) => ({ ...p })),
@@ -570,6 +686,14 @@ export class Engine {
     }
 
     Object.assign(this.player.state, snap.player)
+    // Save trước bản có ô dụng cụ nhanh không mang theo trường này. Dựng lại
+    // dãy mặc định còn hơn bắt người chơi mất cả nông trại chỉ vì thêm một
+    // trường vào PlayerState.
+    const slots = snap.player.quickSlots
+    this.player.state.quickSlots =
+      Array.isArray(slots) && slots.length === QUICK_SLOTS
+        ? slots.map((t) => (t && TOOL_ORDER.includes(t) ? t : null))
+        : defaultQuickSlots()
     this.player.setTool(snap.player.tool)
     this.pets.loadFrom(snap.pets)
 
