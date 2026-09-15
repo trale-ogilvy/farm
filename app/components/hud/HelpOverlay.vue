@@ -29,7 +29,7 @@ const ROWS = [
   ['Q / E', 'Xoay camera bằng bàn phím'],
   ['Cuộn chuột', 'Kéo camera xa / gần'],
   ['Shift', 'Chạy (tốn sức)'],
-  ['Chuột trái / Space', 'Dùng dụng cụ đang cầm (lối chơi bằng chuột)'],
+  ['Chuột trái / Space', 'Dùng dụng cụ đang cầm — trừ bóng, bóng chỉ ném bằng F'],
   ['B', 'Ba lô — kéo dụng cụ xuống ô nhanh'],
   ['R', 'Ăn nông sản để hồi sức'],
   ['Tab', 'Bảng pet'],
@@ -43,7 +43,7 @@ const FLOW = [
   ['🌱', 'Cầm túi hạt bấm F trên luống trống — chọn một loại là gieo kín ruộng'],
   ['🪣', 'Múc nước ở ao rồi tưới — cây khô lớn chậm 3 lần'],
   ['🌾', 'Thu hoạch khi cây đã chín'],
-  ['🔴', 'Ném bóng bắt pet hoang, rồi giao việc cho nó làm thay bạn'],
+  ['🔴', 'Cầm bóng, đứng gần pet hoang tới khi hiện BẮT rồi bấm F'],
 ]
 </script>
 

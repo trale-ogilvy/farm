@@ -286,9 +286,14 @@ export class Engine {
     const target = this.resolveTarget()
     const tool = this.player.state.tool
 
+    // Bóng KHÔNG ném bằng chuột / Space nữa.
+    //
+    // Lối này nhắm vào một Ô, không vào con pet: chuột trượt một chút là bóng
+    // bay vào chỗ trống, mà mỗi lần trượt là mất một quả. Space còn tệ hơn —
+    // nó lấy ô chuột vừa rê qua, tức ném vào chỗ người chơi không hề nhìn.
+    // Chỉ còn phím F, và F chỉ hiện BẮT khi đã có pet thật trong tầm ngắm.
     if (tool === 'ball') {
-      const aim = this.hovered ?? target
-      this.catcher.throwAt(this.player, aim.x, aim.z)
+      this.hintBallKey()
       return
     }
 
@@ -428,6 +433,25 @@ export class Engine {
       p.enabled = t.enabled
     }
     this.promptSink?.(p)
+  }
+
+  /**
+   * Nhắc một lần cho mỗi lượt bấm dồn, không nhắc mỗi cú click.
+   *
+   * Im hoàn toàn thì người chơi bấm mãi không thấy gì và kết luận là phím hỏng;
+   * nhắc mỗi lần click thì màn hình đầy toast. Ba giây là đủ để một tràng click
+   * chỉ sinh ra một lời nhắc.
+   */
+  private lastBallHint = 0
+
+  private hintBallKey(): void {
+    const now = performance.now()
+    if (now - this.lastBallHint < 3000) return
+    this.lastBallHint = now
+    this.bus.emit('toast', {
+      text: 'Ném bóng bằng phím F khi hiện bong bóng BẮT',
+      kind: 'info',
+    })
   }
 
   /**

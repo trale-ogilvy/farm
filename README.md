@@ -52,7 +52,7 @@ hotbar thành bộ lọc: cầm rìu thì cả bản đồ chỉ còn cây để
 | Cuộn chuột | Kéo camera xa / gần |
 | `Shift` | Chạy (tốn sức) |
 | `1`–`6` | Chọn dụng cụ ở dãy ô nhanh |
-| Chuột trái / `Space` | Dùng dụng cụ lên ô đang nhắm |
+| Chuột trái / `Space` | Dùng dụng cụ lên ô đang nhắm (trừ bóng) |
 | `B` | Ba lô |
 | `R` | Ăn nông sản để hồi sức |
 | `Tab` | Bảng pet |
@@ -104,8 +104,15 @@ không thể lệch khỏi gieo một ô.
 Vòng lặp chơi: **cuốc đất → gieo hạt → tưới → thu hoạch → bán → mua hạt tốt hơn.**
 Cây khô vẫn lớn nhưng chậm 3 lần, nên tưới là việc đáng làm chứ không bắt buộc.
 
-Bắt pet: chọn bóng, ném vào pet hoang. Pet hoang chỉ bỏ chạy khi bạn cầm
-bóng. Ném trượt thì pet mệt đi, lần sau dễ bắt hơn. Bắt được rồi thì vào bảng
+Bắt pet: cầm bóng, lại gần pet hoang tới khi hiện bong bóng `Ⓕ BẮT` rồi bấm
+`F`. Pet hoang chỉ bỏ chạy khi bạn cầm bóng. Ném trượt thì pet mệt đi, lần sau
+dễ bắt hơn.
+
+**Bóng không ném bằng chuột.** Lối chuột nhắm vào một *ô*, không vào con pet:
+trượt một chút là bóng bay vào chỗ trống và mất một quả. `Space` còn tệ hơn, nó
+lấy ô mà chuột vừa rê qua — tức ném vào chỗ người chơi không hề nhìn. Chỉ còn
+`F`, mà `F` chỉ hiện BẮT khi đã có pet thật trong tầm ngắm, nên không ném hụt
+được. Bấm chuột lúc đang cầm bóng thì game nhắc một câu thay vì im lặng. Bắt được rồi thì vào bảng
 pet (`Tab`) giao việc — pet sẽ tự đi tưới / thu hoạch / nhặt gỗ mà không cần bạn.
 
 ## Stack
