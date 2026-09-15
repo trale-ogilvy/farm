@@ -1,0 +1,438 @@
+import type { JobKind, PlayerState, ToolKind, WorldSnapshot } from '../types'
+import { DEFAULT_GEN, Grid, clearSpawnArea, generateWorld } from '../world/Grid'
+import { SceneManager } from '../render/SceneManager'
+import { Player } from '../entities/Player'
+import { FarmActions } from '../systems/FarmActions'
+import { CropSystem } from '../systems/CropSystem'
+import { PetSystem } from '../systems/PetSystem'
+import { CatchSystem } from '../systems/CatchSystem'
+import { CROP_IDS, cropDef } from '../data/crops'
+import { EventBus } from './EventBus'
+import { GameClock, DAY_LENGTH_MS } from './Time'
+import { Input } from './Input'
+
+/** Tầm với của dụng cụ tính bằng ô. Ngoài tầm thì tự đánh vào ô trước mặt. */
+const REACH = 3.2
+
+const TOOL_ORDER: ToolKind[] = ['hoe', 'wateringCan', 'seedBag', 'scythe', 'axe', 'ball']
+
+export const SAVE_VERSION = 3
+
+function defaultPlayerState(x: number, z: number): PlayerState {
+  return {
+    x,
+    z,
+    facing: 0,
+    tool: 'hoe',
+    selectedSeed: 'turnip',
+    coins: 120,
+    energy: 100,
+    maxEnergy: 100,
+    water: 20,
+    maxWater: 20,
+    inventory: [
+      { id: 'seed:turnip', count: 15 },
+      { id: 'seed:carrot', count: 8 },
+      { id: 'ball', count: 12 },
+    ],
+  }
+}
+
+/**
+ * Điểm nối duy nhất giữa UI và gameplay. Vue chỉ chạm vào class này; mọi thứ
+ * sâu hơn (three.js, máy trạng thái pet, lưới tile) đều nằm sau nó.
+ */
+export class Engine {
+  readonly bus = new EventBus()
+  readonly clock: GameClock
+  readonly grid: Grid
+  readonly scene: SceneManager
+  readonly player: Player
+  readonly pets: PetSystem
+  readonly actions: FarmActions
+  readonly catcher: CatchSystem
+
+  private input: Input
+  private crops = new CropSystem()
+  private raf = 0
+  private lastFrame = 0
+  private running = false
+  private worldDirty = true
+  private elapsedSeconds = 0
+  private lastDay = 1
+  private hovered: { x: number; z: number } | null = null
+  private hiddenAt = 0
+  private onVisibility = () => this.handleVisibility()
+
+  constructor(canvas: HTMLCanvasElement, snapshot?: WorldSnapshot | null) {
+    this.clock = new GameClock(this.bus)
+    this.grid = generateWorld(DEFAULT_GEN)
+
+    const spawnX = Math.floor(DEFAULT_GEN.width / 2)
+    const spawnZ = Math.floor(DEFAULT_GEN.height / 2) + 3
+    clearSpawnArea(this.grid, spawnX, spawnZ, 1)
+
+    this.scene = new SceneManager(canvas, this.grid)
+    this.input = new Input(canvas)
+
+    this.player = new Player(snapshot?.player ?? defaultPlayerState(spawnX, spawnZ))
+    this.scene.entityLayer.add(this.player.rig.root)
+
+    this.pets = new PetSystem(this.grid, this.bus, this.scene.entityLayer)
+    this.actions = new FarmActions(this.grid, this.bus)
+    this.catcher = new CatchSystem(this.scene.entityLayer, this.pets, this.bus)
+
+    if (snapshot) this.restore(snapshot)
+    else this.pets.spawnWild(7)
+
+    this.lastDay = this.clock.day
+    this.scene.snapCameraTo(this.player.state.x, this.player.state.z)
+    this.scene.refreshWorld(this.clock.elapsed)
+
+    document.addEventListener('visibilitychange', this.onVisibility)
+  }
+
+  /**
+   * requestAnimationFrame ngừng chạy khi tab bị ẩn, nên đồng hồ game đứng theo.
+   * Quay lại tab thì cộng bù đúng khoảng thời gian thực đã trôi — nếu không,
+   * người chơi mở tab khác 10 phút rồi quay về sẽ thấy cây y nguyên.
+   */
+  private handleVisibility(): void {
+    if (document.hidden) {
+      this.hiddenAt = Date.now()
+      return
+    }
+    if (!this.hiddenAt) return
+    const away = Date.now() - this.hiddenAt
+    this.hiddenAt = 0
+    this.lastFrame = performance.now()
+    if (away < 2000) return
+    this.creditElapsed(away)
+  }
+
+  /** Cộng bù thời gian vắng mặt (đổi tab hoặc đóng game), có chặn trần. */
+  private creditElapsed(ms: number): number {
+    const capped = Math.min(ms, DAY_LENGTH_MS * 3)
+    if (capped <= 0) return 0
+    this.clock.elapsed += capped
+    this.crops.applyOfflineProgress(this.grid, capped, this.clock.elapsed)
+    this.worldDirty = true
+    this.lastDay = this.clock.day
+    return capped
+  }
+
+  // ------------------------------------------------------------------- loop
+
+  start(): void {
+    if (this.running) return
+    this.running = true
+    this.lastFrame = performance.now()
+    const tick = (now: number) => {
+      if (!this.running) return
+      // Chặn dt lớn khi tab bị ẩn: nhảy 30 giây trong một frame sẽ làm nhân vật
+      // xuyên qua tường và cây lớn vọt.
+      const dt = Math.min(64, now - this.lastFrame)
+      this.lastFrame = now
+      this.update(dt)
+      this.raf = requestAnimationFrame(tick)
+    }
+    this.raf = requestAnimationFrame(tick)
+  }
+
+  stop(): void {
+    this.running = false
+    cancelAnimationFrame(this.raf)
+  }
+
+  private update(dt: number): void {
+    this.elapsedSeconds += dt / 1000
+    this.clock.update(dt)
+    const now = this.clock.elapsed
+    this.actions.now = now
+
+    this.handleInput(now)
+
+    this.player.update(dt, this.input, this.grid, this.elapsedSeconds)
+    if (this.pets.update(dt, this.player, now, this.elapsedSeconds)) this.worldDirty = true
+    this.catcher.update(dt)
+    if (this.crops.update(dt, this.grid, now)) this.worldDirty = true
+
+    this.rollOverDay()
+
+    if (this.worldDirty || this.grid.dirty.size > 0) {
+      this.scene.refreshWorld(now)
+      this.worldDirty = false
+    }
+
+    this.scene.followTarget(this.player.state.x, this.player.state.z, dt)
+    this.scene.updateLighting(this.clock.daylight, this.clock.hour)
+    this.scene.render()
+
+    this.input.endFrame()
+  }
+
+  /** Sang ngày mới: hồi sức, đất khô bớt, pet nghỉ đủ. */
+  private rollOverDay(): void {
+    const day = this.clock.day
+    if (day === this.lastDay) return
+    this.lastDay = day
+
+    this.player.state.energy = this.player.state.maxEnergy
+    for (const pet of this.pets.owned) pet.stamina = pet.maxStamina
+    this.bus.emit('player:changed', undefined)
+    this.bus.emit('pets:changed', undefined)
+    this.bus.emit('toast', { text: `Ngày ${day} bắt đầu — đã hồi đầy sức`, kind: 'good' })
+  }
+
+  // ------------------------------------------------------------------ input
+
+  private handleInput(now: number): void {
+    const input = this.input
+
+    if (input.wheel !== 0) this.scene.zoomBy(input.wheel * 0.006)
+
+    for (let i = 0; i < TOOL_ORDER.length; i++) {
+      if (input.justPressed(`Digit${i + 1}`)) this.setTool(TOOL_ORDER[i]!)
+    }
+    if (input.justPressed('KeyQ')) this.cycleSeed(-1)
+    if (input.justPressed('KeyE')) this.cycleSeed(1)
+    if (input.justPressed('KeyR')) this.eat()
+    if (input.justPressed('Tab')) this.bus.emit('ui:open', 'pets')
+
+    this.hovered = this.scene.pickTile(input.pointer.x, input.pointer.y)
+    const target = this.resolveTarget()
+    const tile = this.grid.at(target.x, target.z)
+    const tool = this.player.state.tool
+
+    this.scene.setCursor(
+      target,
+      tool === 'ball' ? this.catcher.ready : this.actions.isValidTarget(tool, tile, this.player),
+    )
+
+    const wantsAct = input.pointerJustDown || input.justPressed('Space')
+    if (!wantsAct) return
+
+    if (tool === 'ball') {
+      const aim = this.hovered ?? target
+      this.catcher.throwAt(this.player, aim.x, aim.z)
+      return
+    }
+
+    const result = this.actions.perform(tool, target.x, target.z, this.player)
+    if (result.ok) {
+      this.player.swing()
+      this.worldDirty = true
+    } else if (result.reason) {
+      this.bus.emit('toast', { text: result.reason, kind: 'bad' })
+    }
+  }
+
+  /**
+   * Ô sẽ bị tác động: ưu tiên ô dưới chuột nếu còn trong tầm với, nếu không thì
+   * ô ngay trước mặt. Nhờ vậy chơi bằng bàn phím thuần vẫn được.
+   */
+  private resolveTarget(): { x: number; z: number } {
+    if (this.hovered) {
+      const d = Math.hypot(
+        this.hovered.x - this.player.state.x,
+        this.hovered.z - this.player.state.z,
+      )
+      if (d <= REACH) return this.hovered
+    }
+    return this.player.frontTile()
+  }
+
+  setTool(tool: ToolKind): void {
+    this.player.setTool(tool)
+    this.bus.emit('player:changed', undefined)
+  }
+
+  cycleSeed(dir: number): void {
+    const owned = CROP_IDS.filter((id) =>
+      this.player.state.inventory.some((i) => i.id === `seed:${id}` && i.count > 0),
+    )
+    const list = owned.length > 0 ? owned : CROP_IDS
+    const idx = list.indexOf(this.player.state.selectedSeed)
+    const next = list[(idx + dir + list.length) % list.length]!
+    this.player.state.selectedSeed = next
+    this.bus.emit('player:changed', undefined)
+    this.bus.emit('toast', { text: `Hạt: ${cropDef(next).name}`, kind: 'info' })
+  }
+
+  selectSeed(id: string): void {
+    this.player.state.selectedSeed = id
+    this.bus.emit('player:changed', undefined)
+  }
+
+  /** Ăn nông sản để hồi sức giữa ngày. */
+  eat(): void {
+    const state = this.player.state
+    const food = state.inventory.find(
+      (i) => CROP_IDS.includes(i.id) && i.count > 0,
+    )
+    if (!food) {
+      this.bus.emit('toast', { text: 'Không có gì để ăn', kind: 'bad' })
+      return
+    }
+    if (state.energy >= state.maxEnergy) {
+      this.bus.emit('toast', { text: 'Đang khoẻ mà', kind: 'info' })
+      return
+    }
+    const def = cropDef(food.id)
+    food.count -= 1
+    state.energy = Math.min(state.maxEnergy, state.energy + 18)
+    this.bus.emit('player:changed', undefined)
+    this.bus.emit('toast', { text: `Ăn ${def.name}, +18 sức`, kind: 'good' })
+  }
+
+  /** Bán toàn bộ nông sản đang có. */
+  sellAll(): number {
+    const state = this.player.state
+    let total = 0
+    for (const item of state.inventory) {
+      if (!CROP_IDS.includes(item.id) || item.count <= 0) continue
+      total += cropDef(item.id).sellPrice * item.count
+      item.count = 0
+    }
+    state.coins += total
+    state.inventory = state.inventory.filter((i) => i.count > 0)
+    this.bus.emit('player:changed', undefined)
+    this.bus.emit('toast', {
+      text: total > 0 ? `Bán được ${total} xu` : 'Không có gì để bán',
+      kind: total > 0 ? 'good' : 'info',
+    })
+    return total
+  }
+
+  buySeed(cropId: string, qty = 1): boolean {
+    const def = cropDef(cropId)
+    const cost = def.seedPrice * qty
+    if (this.player.state.coins < cost) {
+      this.bus.emit('toast', { text: 'Không đủ xu', kind: 'bad' })
+      return false
+    }
+    this.player.state.coins -= cost
+    const key = `seed:${cropId}`
+    const item = this.player.state.inventory.find((i) => i.id === key)
+    if (item) item.count += qty
+    else this.player.state.inventory.push({ id: key, count: qty })
+    this.bus.emit('player:changed', undefined)
+    this.bus.emit('toast', { text: `Mua ${qty} hạt ${def.name}`, kind: 'good' })
+    return true
+  }
+
+  buyBalls(qty = 5): boolean {
+    const cost = 25 * qty
+    if (this.player.state.coins < cost) {
+      this.bus.emit('toast', { text: 'Không đủ xu', kind: 'bad' })
+      return false
+    }
+    this.player.state.coins -= cost
+    const item = this.player.state.inventory.find((i) => i.id === 'ball')
+    if (item) item.count += qty
+    else this.player.state.inventory.push({ id: 'ball', count: qty })
+    this.bus.emit('player:changed', undefined)
+    this.bus.emit('toast', { text: `Mua ${qty} bóng`, kind: 'good' })
+    return true
+  }
+
+  assignJob(uid: string, job: JobKind): void {
+    this.pets.assignJob(uid, job)
+  }
+
+  // ----------------------------------------------------------- save / restore
+
+  snapshot(): WorldSnapshot {
+    // Chỉ lưu ô khác với bản đồ sinh từ seed; phần còn lại tái tạo lúc load.
+    // Với 48×48 ô, một nông trại điển hình chỉ cần lưu vài trăm ô.
+    const base = this.baseline
+    const tiles: WorldSnapshot['tiles'] = []
+
+    for (const t of this.grid.tiles) {
+      const b = base.at(t.x, t.z)
+      if (!b) continue
+      const changed =
+        t.ground !== b.ground ||
+        t.tilled !== b.tilled ||
+        t.prop !== b.prop ||
+        t.propHp !== b.propHp ||
+        t.wetUntil !== 0 ||
+        t.crop !== null
+      if (!changed) continue
+
+      tiles.push({
+        x: t.x,
+        z: t.z,
+        ground: t.ground,
+        tilled: t.tilled,
+        wetUntil: t.wetUntil,
+        prop: t.prop,
+        propHp: t.propHp,
+        crop: t.crop ? { ...t.crop } : null,
+      })
+    }
+
+    return {
+      version: SAVE_VERSION,
+      savedAt: Date.now(),
+      gameTime: this.clock.elapsed,
+      player: {
+        ...this.player.state,
+        inventory: this.player.state.inventory.map((i) => ({ ...i })),
+      },
+      pets: this.pets.pets.map((p) => ({ ...p })),
+      tiles,
+    }
+  }
+
+  private pristine: Grid | null = null
+
+  /** Bản đồ gốc chưa ai đụng, dùng làm mốc so sánh khi lưu. */
+  private get baseline(): Grid {
+    if (!this.pristine) this.pristine = generateWorld(DEFAULT_GEN)
+    return this.pristine
+  }
+
+  restore(snap: WorldSnapshot): void {
+    this.clock.elapsed = snap.gameTime
+
+    for (const saved of snap.tiles) {
+      const tile = this.grid.at(saved.x, saved.z)
+      if (!tile) continue
+      tile.ground = saved.ground
+      tile.tilled = saved.tilled
+      tile.wetUntil = saved.wetUntil
+      tile.prop = saved.prop
+      tile.propHp = saved.propHp
+      tile.crop = saved.crop
+    }
+
+    Object.assign(this.player.state, snap.player)
+    this.player.setTool(snap.player.tool)
+    this.pets.loadFrom(snap.pets)
+
+    // Cây vẫn lớn khi người chơi offline, nhưng ở mức chậm (xem CropSystem).
+    const credited = this.creditElapsed(Math.max(0, Date.now() - snap.savedAt))
+    if (credited > 60_000) {
+      this.bus.emit('toast', {
+        text: `Vắng mặt ${Math.round(credited / 60000)} phút — cây đã lớn thêm`,
+        kind: 'info',
+      })
+    }
+
+    this.worldDirty = true
+    this.bus.emit('player:changed', undefined)
+    this.bus.emit('pets:changed', undefined)
+  }
+
+  dispose(): void {
+    this.stop()
+    document.removeEventListener('visibilitychange', this.onVisibility)
+    this.input.dispose()
+    this.catcher.dispose()
+    this.scene.dispose()
+    this.bus.clear()
+  }
+}
+
+export { TOOL_ORDER }

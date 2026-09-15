@@ -1,0 +1,26 @@
+rules_version = '2';
+
+/**
+ * Mỗi người chơi chỉ ghi được nông trại của chính mình, nhưng AI ĐĂNG NHẬP
+ * CŨNG ĐỌC ĐƯỢC nông trại người khác — đây là nền cho tính năng "thăm nông trại
+ * bạn bè" (giúp tưới nước, trộm cây) ở giai đoạn multiplayer.
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /farms/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+
+      // Hộp thư hành động của khách: khách chỉ được TẠO bản ghi, không sửa/xoá.
+      // Chủ nông trại đọc và áp dụng khi vào game, nên khách không thể ghi đè
+      // trực tiếp lên state của chủ.
+      match /visits/{visitId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null
+                      && request.resource.data.by == request.auth.uid
+                      && request.resource.data.keys().hasOnly(['by', 'action', 'x', 'z', 'at']);
+        allow update, delete: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+  }
+}

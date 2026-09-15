@@ -1,0 +1,188 @@
+import { computed, reactive, ref, shallowRef } from 'vue'
+import type { Engine } from '~/game/core/Engine'
+import type { InventoryItem, JobKind, PetDef, ToolKind } from '~/game/types'
+import { petDef } from '~/game/data/pets'
+
+export interface PetView {
+  uid: string
+  name: string
+  defId: string
+  def: PetDef
+  job: JobKind
+  state: string
+  level: number
+  stamina: number
+  maxStamina: number
+}
+
+export interface Toast {
+  id: number
+  text: string
+  kind: 'info' | 'good' | 'bad'
+}
+
+export type Panel = 'none' | 'pets' | 'shop' | 'pokedex'
+
+/**
+ * Trạng thái UI phản chiếu từ engine. Cố ý KHÔNG để Vue theo dõi dữ liệu game
+ * thật: engine chạy 60fps trên object thuần, mỗi khi có gì đáng hiện lên màn
+ * hình nó bắn event và ta chép sang đây. Nếu bọc reactive() quanh state engine,
+ * mọi lần ghi toạ độ đều kích hoạt effect và tụt khung hình.
+ */
+const engineRef = shallowRef<Engine | null>(null)
+
+const hud = reactive({
+  coins: 0,
+  energy: 100,
+  maxEnergy: 100,
+  water: 0,
+  maxWater: 20,
+  tool: 'hoe' as ToolKind,
+  selectedSeed: 'turnip',
+  inventory: [] as InventoryItem[],
+})
+
+const pets = ref<PetView[]>([])
+const clockText = ref('06:00')
+const day = ref(1)
+const isNight = ref(false)
+const panel = ref<Panel>('none')
+const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
+const backend = ref<'firebase' | 'local'>('local')
+const ready = ref(false)
+const toasts = ref<Toast[]>([])
+
+let toastId = 0
+
+export function useGameStore() {
+  const engine = engineRef
+
+  function attach(next: Engine) {
+    engineRef.value = next
+    syncPlayer()
+    syncPets()
+    syncClock()
+
+    next.bus.on('player:changed', syncPlayer)
+    next.bus.on('pets:changed', syncPets)
+    next.bus.on('time:changed', syncClock)
+    next.bus.on('catch:result', syncPets)
+    next.bus.on('ui:open', (p) => {
+      panel.value = panel.value === p ? 'none' : p
+    })
+    next.bus.on('toast', ({ text, kind }) => pushToast(text, kind ?? 'info'))
+    ready.value = true
+  }
+
+  function detach() {
+    engineRef.value = null
+    ready.value = false
+    pets.value = []
+    toasts.value = []
+  }
+
+  function syncPlayer() {
+    const e = engineRef.value
+    if (!e) return
+    const s = e.player.state
+    hud.coins = s.coins
+    hud.energy = s.energy
+    hud.maxEnergy = s.maxEnergy
+    hud.water = s.water
+    hud.maxWater = s.maxWater
+    hud.tool = s.tool
+    hud.selectedSeed = s.selectedSeed
+    // Chép mảng để Vue thấy tham chiếu mới; danh sách túi đồ rất ngắn.
+    hud.inventory = s.inventory.filter((i) => i.count > 0).map((i) => ({ ...i }))
+  }
+
+  function syncPets() {
+    const e = engineRef.value
+    if (!e) return
+    pets.value = e.pets.owned.map((p) => ({
+      uid: p.uid,
+      name: p.name,
+      defId: p.defId,
+      def: petDef(p.defId),
+      job: p.job,
+      state: p.state,
+      level: p.level,
+      stamina: p.stamina,
+      maxStamina: p.maxStamina,
+    }))
+  }
+
+  function syncClock() {
+    const e = engineRef.value
+    if (!e) return
+    clockText.value = e.clock.formatClock()
+    day.value = e.clock.day
+    isNight.value = e.clock.isNight
+  }
+
+  function pushToast(text: string, kind: Toast['kind']) {
+    const id = ++toastId
+    toasts.value = [...toasts.value.slice(-4), { id, text, kind }]
+    setTimeout(() => {
+      toasts.value = toasts.value.filter((t) => t.id !== id)
+    }, 2600)
+  }
+
+  /** Cập nhật thanh sức/nước liên tục — các giá trị này đổi mỗi frame. */
+  function pollVitals() {
+    const e = engineRef.value
+    if (!e) return
+    hud.energy = e.player.state.energy
+    hud.water = e.player.state.water
+    if (panel.value === 'pets') {
+      for (const view of pets.value) {
+        const live = e.pets.byUid(view.uid)
+        if (live) {
+          view.stamina = live.stamina
+          view.state = live.state
+        }
+      }
+    }
+  }
+
+  const seedCounts = computed(() => {
+    const map: Record<string, number> = {}
+    for (const item of hud.inventory) {
+      if (item.id.startsWith('seed:')) map[item.id.slice(5)] = item.count
+    }
+    return map
+  })
+
+  const ballCount = computed(
+    () => hud.inventory.find((i) => i.id === 'ball')?.count ?? 0,
+  )
+
+  const harvestCount = computed(() =>
+    hud.inventory
+      .filter((i) => !i.id.startsWith('seed:') && i.id !== 'ball')
+      .reduce((sum, i) => sum + i.count, 0),
+  )
+
+  return {
+    engine,
+    hud,
+    pets,
+    clockText,
+    day,
+    isNight,
+    panel,
+    saveState,
+    backend,
+    ready,
+    toasts,
+    seedCounts,
+    ballCount,
+    harvestCount,
+    attach,
+    detach,
+    syncPlayer,
+    syncPets,
+    pollVitals,
+    pushToast,
+  }
+}

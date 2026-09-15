@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+
+  --color-farm-soil: #6b4b2a;
+  --color-farm-grass: #6fb04a;
+  --color-farm-sky: #8fd3f4;
+  --color-farm-ink: #2b1d12;
+  --color-farm-parchment: #f4e4c1;
+}
+
+html, body, #__nuxt {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #0e1a12;
+  font-family: var(--font-display);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+canvas {
+  display: block;
+  touch-action: none;
+}
+
+/* Khung kính dùng chung cho mọi bảng HUD. */
+@utility panel {
+  border-radius: 0.75rem;
+  background: color-mix(in oklab, #1b2a20 78%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.08) inset,
+    0 8px 24px rgb(0 0 0 / 0.35);
+  color: var(--color-farm-parchment);
+}
+
+/* Thanh cuộn mảnh cho các bảng bên phải. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.2) transparent;
+}
