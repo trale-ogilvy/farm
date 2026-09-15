@@ -18,8 +18,27 @@ Không cần cấu hình gì thêm. Không có Firebase thì game tự lưu vào
 
 ## Điều khiển
 
+Chơi được **hoàn toàn bằng bàn phím**. Đứng cạnh thứ gì làm được việc thì một
+bong bóng `Ⓕ TRỒNG` hiện ngay trên nó; bấm `F` là nhân vật xoay mặt về phía đó và
+làm. Ô quyết định việc, không phải người chơi chọn dụng cụ:
+
+| Trạng thái ô | Việc |
+|---|---|
+| Cỏ / đất chưa cuốc | CUỐC |
+| Luống trống | TRỒNG |
+| Cây đang lớn, đất khô | TƯỚI |
+| Cây đã chín | THU HOẠCH |
+| Cây / bụi / đá | CHẶT |
+| Mặt nước | MÚC NƯỚC |
+| Pet hoang trong tầm | BẮT |
+| Cây đang lớn và đất còn ẩm | *không hiện gì* |
+
+Bong bóng mờ đi khi đúng ngữ cảnh nhưng thiếu tài nguyên (hết hạt, hết nước);
+bấm `F` lúc đó sẽ nói rõ thiếu gì thay vì im lặng.
+
 | Phím | Tác dụng |
 |---|---|
+| `F` | **Làm việc trước mặt** |
 | `WASD` / mũi tên | Di chuyển **theo hướng camera** |
 | Giữ chuột phải + rê | Xoay camera quanh nhân vật |
 | `Q` / `E` | Xoay camera bằng bàn phím |

@@ -11,6 +11,7 @@ useHead({ title: 'Nông trại' })
     <div class="paper-grain" />
     <div class="paper-vignette" />
 
+    <HudActionPrompt />
     <HudStatusBar />
     <HudSideButtons />
     <HudHotbar />

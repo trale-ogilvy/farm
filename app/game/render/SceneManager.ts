@@ -43,6 +43,7 @@ export class SceneManager {
   private raycaster = new THREE.Raycaster()
   private resizeObserver: ResizeObserver
   private pickCache: { x: number; z: number } | null = null
+  private projected = new THREE.Vector3()
 
   get camera(): THREE.PerspectiveCamera {
     return this.rig.camera
@@ -355,6 +356,23 @@ export class SceneManager {
       group.mesh.count = list.length
       group.outline.count = list.length
       group.mesh.instanceMatrix.needsUpdate = true
+    }
+  }
+
+  /**
+   * Chiếu một điểm thế giới ra toạ độ pixel trên canvas.
+   *
+   * Bong bóng hành động là phần tử HTML chứ không phải sprite 3D: chữ nét căng
+   * ở mọi khoảng cách, và dùng lại được đúng kiểu giấy-mực của HUD.
+   */
+  projectToScreen(x: number, y: number, z: number): { x: number; y: number; visible: boolean } {
+    const v = this.projected.set(x, y, z).project(this.camera)
+    const el = this.renderer.domElement
+    return {
+      x: (v.x * 0.5 + 0.5) * el.clientWidth,
+      y: (-v.y * 0.5 + 0.5) * el.clientHeight,
+      // z ngoài [-1,1] nghĩa là điểm nằm sau camera hoặc quá xa.
+      visible: v.z > -1 && v.z < 1,
     }
   }
 

@@ -22,19 +22,21 @@ watch(open, (v) => {
 })
 
 const ROWS = [
+  ['F', 'Làm việc trước mặt — xem bong bóng trên mục tiêu'],
   ['WASD / ←↑→↓', 'Di chuyển theo hướng camera'],
   ['Giữ chuột phải', 'Xoay camera quanh nhân vật'],
   ['Q / E', 'Xoay camera bằng bàn phím'],
   ['Cuộn chuột', 'Kéo camera xa / gần'],
   ['Shift', 'Chạy (tốn sức)'],
   ['1 – 6', 'Chọn dụng cụ'],
-  ['Chuột trái / Space', 'Dùng dụng cụ lên ô đang nhắm'],
+  ['Chuột trái / Space', 'Dùng dụng cụ đang cầm (lối chơi bằng chuột)'],
   ['[ / ]', 'Đổi loại hạt giống'],
   ['R', 'Ăn nông sản để hồi sức'],
   ['Tab', 'Bảng pet'],
 ]
 
 const FLOW = [
+  ['🅕', 'Đứng cạnh mục tiêu là hiện bong bóng — bấm F làm đúng việc đó'],
   ['⛏️', 'Cuốc đất trống thành luống'],
   ['🌱', 'Gieo hạt lên luống đã cuốc'],
   ['🪣', 'Múc nước ở ao rồi tưới — cây khô lớn chậm 3 lần'],

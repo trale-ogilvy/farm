@@ -91,7 +91,7 @@ export class CatchSystem {
 
     ball.count -= 1
     this.cooldown = COOLDOWN_MS
-    player.swing()
+    player.playAction('throw', 'ball')
     player.state.facing = Math.atan2(dx, dz)
     this.bus.emit('player:changed', undefined)
     return true

@@ -6,6 +6,7 @@ import { FarmActions } from '../systems/FarmActions'
 import { CropSystem } from '../systems/CropSystem'
 import { PetSystem } from '../systems/PetSystem'
 import { CatchSystem } from '../systems/CatchSystem'
+import { resolveAction, type ActionAnim, type ActionTarget } from '../systems/ContextAction'
 import { CROP_IDS, cropDef } from '../data/crops'
 import { EventBus } from './EventBus'
 import { GameClock, DAY_LENGTH_MS } from './Time'
@@ -18,6 +19,29 @@ const TOOL_ORDER: ToolKind[] = ['hoe', 'wateringCan', 'seedBag', 'scythe', 'axe'
 
 /** Tốc độ xoay camera bằng phím, quy đổi sang "pixel kéo chuột" mỗi frame. */
 const KEY_TURN_SPEED = 7
+
+/** Sau ngần này ms không động chuột thì coi như đang chơi bằng bàn phím. */
+const MOUSE_IDLE_MS = 2000
+
+/** Animation ứng với từng dụng cụ, dùng cho lối chơi bằng chuột. */
+const ANIM_BY_TOOL: Record<ToolKind, ActionAnim> = {
+  hoe: 'swing',
+  axe: 'swing',
+  scythe: 'harvest',
+  wateringCan: 'water',
+  seedBag: 'plant',
+  ball: 'throw',
+}
+
+/** Dữ liệu bong bóng hành động gửi cho lớp UI mỗi frame. */
+export interface ActionPrompt {
+  visible: boolean
+  label: string
+  enabled: boolean
+  /** Toạ độ pixel trên canvas. */
+  x: number
+  y: number
+}
 
 // v4: bản đồ đổi từ lưới phẳng 48×48 sang địa hình có độ cao 72×72. Toạ độ ô
 // trong save cũ trỏ sang chỗ khác hẳn, nên phải bỏ chứ không thể nâng cấp.
@@ -66,6 +90,10 @@ export class Engine {
   private elapsedSeconds = 0
   private lastDay = 1
   private hovered: { x: number; z: number } | null = null
+  private target: ActionTarget | null = null
+  private mouseIdle = MOUSE_IDLE_MS
+  private promptSink: ((p: ActionPrompt) => void) | null = null
+  private prompt: ActionPrompt = { visible: false, label: '', enabled: true, x: 0, y: 0 }
   private hiddenAt = 0
   private onVisibility = () => this.handleVisibility()
 
@@ -228,7 +256,26 @@ export class Engine {
     if (input.justPressed('KeyR')) this.eat()
     if (input.justPressed('Tab')) this.bus.emit('ui:open', 'pets')
 
+    // Mục tiêu ngữ cảnh tính lại mỗi frame: người chơi xoay người là đổi mục
+    // tiêu ngay, không có độ trễ.
+    this.target = resolveAction(this.grid, this.player, this.pets, now)
+    this.updatePrompt()
+
+    if (input.justPressed('KeyF')) {
+      this.contextAction()
+      return
+    }
+
+    this.mouseIdle = input.pointerMoved || input.primaryJustDown ? 0 : this.mouseIdle + 16
     this.hovered = this.scene.pickTile(input.pointer.x, input.pointer.y, input.pointerMoved)
+    // Đang chơi bàn phím thì con trỏ ô bám theo mục tiêu của phím F, chứ không
+    // bám theo con chuột đang nằm yên đâu đó.
+    const keyboardMode = this.mouseIdle >= MOUSE_IDLE_MS
+    if (keyboardMode) {
+      this.scene.setCursor(this.target?.tile ?? null, this.target?.enabled ?? false)
+      return
+    }
+
     const target = this.resolveTarget()
     const tile = this.grid.at(target.x, target.z)
     const tool = this.player.state.tool
@@ -247,9 +294,10 @@ export class Engine {
       return
     }
 
+    this.player.faceTowards(target.x, target.z)
     const result = this.actions.perform(tool, target.x, target.z, this.player)
     if (result.ok) {
-      this.player.swing()
+      this.player.playAction(ANIM_BY_TOOL[tool])
       this.worldDirty = true
     } else if (result.reason) {
       this.bus.emit('toast', { text: result.reason, kind: 'bad' })
@@ -269,6 +317,66 @@ export class Engine {
       if (d <= REACH) return this.hovered
     }
     return this.player.frontTile()
+  }
+
+  /**
+   * Đăng ký nơi nhận dữ liệu bong bóng. UI cập nhật DOM trực tiếp từ callback
+   * này thay vì qua ref của Vue — nó chạy mỗi frame, mà cho Vue theo dõi thứ
+   * đổi 60 lần/giây là đường thẳng tới tụt khung hình.
+   */
+  setPromptSink(fn: ((p: ActionPrompt) => void) | null): void {
+    this.promptSink = fn
+    if (!fn) return
+    fn(this.prompt)
+  }
+
+  /**
+   * Làm việc trước mặt. Một phím cho mọi thao tác: ô quyết định việc, không
+   * phải người chơi chọn dụng cụ.
+   */
+  contextAction(): void {
+    const target = this.target
+    if (!target) return
+
+    // Xoay mặt về mục tiêu TRƯỚC, kể cả khi hành động bất thành — nhân vật quay
+    // lưng vào thứ mình vừa bấm là thứ đọc ra ngay là sai.
+    this.player.faceTowards(target.x, target.z)
+
+    if (!target.enabled) {
+      if (target.reason) this.bus.emit('toast', { text: target.reason, kind: 'bad' })
+      return
+    }
+
+    if (target.kind === 'catch') {
+      const pet = target.petUid ? this.pets.byUid(target.petUid) : null
+      if (pet) this.catcher.throwAt(this.player, pet.x, pet.z)
+      return
+    }
+
+    if (!target.tile) return
+    const result = this.actions.perform(target.tool, target.tile.x, target.tile.z, this.player)
+    if (result.ok) {
+      this.player.playAction(target.anim, target.tool)
+      this.worldDirty = true
+    } else if (result.reason) {
+      this.bus.emit('toast', { text: result.reason, kind: 'bad' })
+    }
+  }
+
+  private updatePrompt(): void {
+    const t = this.target
+    const p = this.prompt
+    if (!t) {
+      p.visible = false
+    } else {
+      const s = this.scene.projectToScreen(t.x, t.y, t.z)
+      p.visible = s.visible
+      p.x = s.x
+      p.y = s.y
+      p.label = t.label
+      p.enabled = t.enabled
+    }
+    this.promptSink?.(p)
   }
 
   setTool(tool: ToolKind): void {
@@ -456,6 +564,7 @@ export class Engine {
 
   dispose(): void {
     this.stop()
+    this.promptSink = null
     document.removeEventListener('visibilitychange', this.onVisibility)
     this.input.dispose()
     this.catcher.dispose()
