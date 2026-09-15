@@ -1,3 +1,5 @@
+import type { BuildingKind } from '../types'
+
 /**
  * Cầu nối duy nhất giữa engine (chạy 60fps, dữ liệu thuần) và UI Vue (reactive).
  * Engine không bao giờ import Vue; nó chỉ emit event, UI lắng nghe và tự cập nhật.
@@ -10,7 +12,11 @@ export interface GameEvents {
   'tile:changed': { x: number; z: number }
   'catch:result': { petName: string; success: boolean }
   'save:state': 'saving' | 'saved' | 'error'
-  'ui:open': 'none' | 'pets' | 'shop' | 'pokedex' | 'backpack'
+  'ui:open': 'none' | 'pets' | 'shop' | 'pokedex' | 'backpack' | 'build'
+  /** Đổi loại công trình đang đặt (null = thôi đặt). */
+  'build:changed': BuildingKind | null
+  /** Hỏi người chơi có chắc dỡ công trình ở ô này không. */
+  'ui:confirmRemove': { x: number; z: number; kind: BuildingKind; hasCrop: boolean }
   /** Mở bảng chọn hạt — chỉ bắn khi người chơi thực sự định gieo xuống luống. */
   'ui:seedPicker': void
   /** Esc: lớp UI tự quyết đóng cái gì trước (bảng chọn hạt trước ba lô). */

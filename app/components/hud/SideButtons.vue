@@ -5,7 +5,8 @@ import type { Panel } from '~/composables/useGameStore'
 const { panel, pets } = useGameStore()
 
 const BUTTONS: Array<{ id: Panel; icon: string; label: string; hint?: string }> = [
-  { id: 'backpack', icon: '🎒', label: 'Ba lô', hint: 'B' },
+  { id: 'build', icon: '🔨', label: 'Xây dựng', hint: 'B' },
+  { id: 'backpack', icon: '🎒', label: 'Ba lô', hint: 'I' },
   { id: 'pets', icon: '🐾', label: 'Pet', hint: 'Tab' },
   { id: 'shop', icon: '🏪', label: 'Cửa hàng' },
 ]

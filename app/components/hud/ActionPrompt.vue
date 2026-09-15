@@ -18,6 +18,7 @@ const labelEl = ref<HTMLElement | null>(null)
 let lastLabel = ''
 let lastVisible: boolean | null = null
 let lastEnabled: boolean | null = null
+let lastFar: boolean | null = null
 
 function apply(p: ActionPrompt) {
   const node = el.value
@@ -35,7 +36,7 @@ function apply(p: ActionPrompt) {
   if (p.label !== lastLabel) {
     lastLabel = p.label
     if (labelEl.value) labelEl.value.textContent = p.label
-    // Nảy nhẹ khi đổi việc, để mắt bắt được rằng phím F giờ làm chuyện khác.
+    // Nảy nhẹ khi đổi việc, để mắt bắt được rằng con trỏ giờ chỉ vào việc khác.
     node.classList.remove('pop')
     void node.offsetWidth
     node.classList.add('pop')
@@ -43,6 +44,10 @@ function apply(p: ActionPrompt) {
   if (p.enabled !== lastEnabled) {
     lastEnabled = p.enabled
     node.classList.toggle('is-disabled', !p.enabled)
+  }
+  if (p.far !== lastFar) {
+    lastFar = p.far
+    node.classList.toggle('is-far', p.far)
   }
 }
 
@@ -60,14 +65,9 @@ onBeforeUnmount(() => engine.value?.setPromptSink(null))
 <template>
   <div
     ref="el"
-    class="prompt panel pointer-events-none absolute left-0 top-0 flex items-center gap-2 py-1 pl-1 pr-3"
+    class="prompt panel pointer-events-none absolute left-0 top-0 flex items-center px-3 py-1"
     style="visibility: hidden; opacity: 0"
   >
-    <span
-      class="grid h-6 w-6 place-items-center rounded-full border-2 border-ink/25 bg-paper-deep text-[11px] font-bold"
-    >
-      F
-    </span>
     <span ref="labelEl" class="text-[13px] font-bold uppercase tracking-wider">—</span>
   </div>
 </template>
@@ -83,6 +83,12 @@ onBeforeUnmount(() => engine.value?.setPromptSink(null))
 .prompt.is-disabled {
   opacity: 0.45;
   filter: grayscale(0.5);
+}
+
+/* Ngoài tầm: cùng màu đỏ gạch với lớp highlight, để hai thứ đọc ra là một. */
+.prompt.is-far {
+  color: #c4452f;
+  border-color: rgba(196, 69, 47, 0.55);
 }
 
 /* Nảy một nhịp khi nội dung đổi. Dùng scale trên phần tử con ảo để không đè lên

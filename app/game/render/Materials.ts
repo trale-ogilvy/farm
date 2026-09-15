@@ -39,6 +39,11 @@ export const PALETTE = {
   /** Đáy ao nhìn xuyên qua mặt nước trong suốt. */
   waterBed: 0x86976a,
   path: 0xc9b58f,
+  /** Tường và mái nhà chính. */
+  wall: 0xf1e6cf,
+  roof: 0xc76f5b,
+  /** Bãi cát viền đảo và bờ ao: nhạt hơn lối mòn để dải bờ nổi lên từ xa. */
+  sand: 0xe3d3a6,
   trunk: 0x9a7350,
   foliage: 0x8fb968,
   foliageDark: 0x7aa456,

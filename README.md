@@ -18,69 +18,73 @@ Không cần cấu hình gì thêm. Không có Firebase thì game tự lưu vào
 
 ## Điều khiển
 
-Chơi được **hoàn toàn bằng bàn phím**. Đứng cạnh thứ gì làm được việc thì một
-bong bóng `Ⓕ TRỒNG` hiện ngay trên nó; bấm `F` là nhân vật xoay mặt về phía đó và
-làm.
+Hành động **bằng chuột, theo hai bước**: chọn dụng cụ ở dãy ô nhanh (bấm vào ô
+hoặc phím `1`–`6`), rồi bấm chuột trái vào thứ cần làm. Rê chuột qua là thấy
+ngay có làm được không:
 
-Việc chia làm hai loại, theo câu hỏi *tay không thì có làm được không?*
+- **Sáng vàng** — dụng cụ đang cầm khớp với ô đó và nhân vật với tới. Bấm là làm.
+- **Sáng đỏ** — đúng thứ đó, nhưng ngoài tầm với (2.6 ô, bóng thì 3.2). Đi lại
+  gần thì tự chuyển vàng, chuột không cần nhúc nhích.
+- **Không sáng** — ô đó không có việc cho dụng cụ đang cầm. Bấm không có gì xảy
+  ra.
 
-**Cần đúng dụng cụ** — cầm sai thì coi như ô đó không có việc, không bong bóng,
-không highlight:
+Mỗi ô chỉ có đúng một việc, suy ra từ trạng thái của chính nó; dụng cụ là cách
+người chơi nói mình định làm gì:
 
 | Trạng thái ô | Việc | Dụng cụ |
 |---|---|---|
-| Cỏ / đất chưa cuốc | CUỐC | cuốc |
-| Cây đang lớn, đất khô | TƯỚI | bình nước |
-| Mặt nước | MÚC NƯỚC | bình nước |
+| Luống trống | TRỒNG | túi hạt |
+| Cây đang lớn, đất khô | TƯỚI | bình tưới |
+| Cây đã chín | THU HOẠCH | liềm |
 | Cây / bụi / đá | CHẶT | rìu |
-| Pet hoang trong tầm | BẮT | bóng |
+| Pet hoang | BẮT | bóng |
+| Luống hoặc bãi đang xây | DỠ BỎ | ✖ (ô cuối) |
+| Cây đang lớn và đất còn ẩm | *không có việc* | — |
 
-**Chỉ cần tới gần** — cầm gì cũng làm được:
+Dụng cụ là điều kiện cho **mọi** việc, kể cả gieo và thu hoạch. Cầm rìu mà bấm
+vào cây chín thì không thành thu hoạch — nếu cho phép thì highlight không còn
+nói được "bấm vào sẽ xảy ra gì", vì cùng một cú bấm có thể ra hai việc.
 
-| Trạng thái ô | Việc |
-|---|---|
-| Luống trống | TRỒNG |
-| Cây đã chín | THU HOẠCH |
-| Cây đang lớn và đất còn ẩm | *không hiện gì* |
+Không có cuốc: **luống đất chỉ đến từ xây dựng** (xem bên dưới). Ô cuối của cột
+dụng cụ là **✖ dỡ bỏ**, cố định — không kéo đi, không thả đè, không gỡ. Cầm nó
+rồi rê qua luống hay bãi đang xây dở là sáng lên; bấm thì hỏi lại trước khi dỡ,
+vì cây trên luống và công sức đã xây không lấy lại được. Chỉ công trình xây từ
+bảng xây dựng mới dỡ được (`removable` trong `data/buildings.ts`); nhà chính thì
+không.
 
-Ranh giới là bàn tay. Tay không thì không bổ được đất, không hạ được cây, không
-múc được nước, và không có bóng thì không ném; nhưng rắc hạt xuống luống và hái
-quả chín thì tay làm được — bắt chọn dụng cụ ở đó chỉ nhét thêm một bước vô
-nghĩa giữa "thấy luống trống" và "gieo".
+Bong bóng tên việc hiện trên mục tiêu, mờ đi khi đúng ngữ cảnh nhưng thiếu tài
+nguyên (hết hạt); bấm lúc đó sẽ nói rõ thiếu gì thay vì im lặng.
 
-Lọc theo dụng cụ vẫn cần cho nhóm trên vì **cỏ phủ kín bản đồ**: nếu ô cỏ nào
-cũng tự mời CUỐC thì đi đâu cũng thấy bong bóng và nó hết tác dụng báo "chỗ này
-có việc". Nhóm dưới không gây nhiễu, vì luống trống và cây chín chỉ có ở chỗ
-người chơi tự tạo ra.
-
-Nhân vật vẫn rút đúng đồ nghề ra trong animation dù không phải chọn: gieo thì
-thấy túi hạt, thu hoạch thì thấy liềm, xong lại cất về thứ đang cầm.
-
-Bong bóng mờ đi khi đúng ngữ cảnh nhưng thiếu tài nguyên (hết hạt, hết nước);
-bấm `F` lúc đó sẽ nói rõ thiếu gì thay vì im lặng.
+Không có chỉ số sức hay nước: hành động không tốn gì, bình tưới không bao giờ
+cạn. Cái giá của mọi việc là **thời gian đứng làm** (xem xây dựng bên dưới) —
+một loại chi phí duy nhất, dễ đọc hơn hai thanh phải để mắt canh.
 
 | Phím | Tác dụng |
 |---|---|
-| `F` | **Làm việc trước mặt** |
+| Chuột trái | **Dùng dụng cụ lên thứ dưới con trỏ** |
 | `WASD` / mũi tên | Di chuyển **theo hướng camera** |
 | Giữ chuột phải + rê | Xoay camera quanh nhân vật |
 | `Q` / `E` | Xoay camera bằng bàn phím |
 | Cuộn chuột | Kéo camera xa / gần |
-| `Shift` | Chạy (tốn sức) |
-| `1`–`6` | Chọn dụng cụ ở dãy ô nhanh |
-| Chuột trái / `Space` | Dùng dụng cụ lên ô đang nhắm (trừ bóng) |
-| `B` | Ba lô |
-| `R` | Ăn nông sản để hồi sức |
+| `Shift` | Chạy |
+| `1`–`6` | Cầm dụng cụ ở cột ô nhanh; bấm lại để buông ra |
+| `F` | Xây công trình đã đặt, khi đứng cạnh nó |
+| `B` | Bảng xây dựng |
+| `I` | Ba lô |
 | `Tab` | Bảng pet |
 | `Esc` | Đóng bảng đang mở |
 
-Camera hạ thấp để ngắm cảnh, nâng cao (tới 72°) khi cần canh ô để cuốc đất.
+Camera hạ thấp để ngắm cảnh, nâng cao (tới 72°) khi cần nhìn rõ ô để bấm.
 
-## Ba lô và dãy ô nhanh
+## Ba lô và cột ô nhanh
 
-Góc dưới trái là avatar nhân vật (vòng ngoài là thanh sức) kèm sáu ô dụng cụ
-nhanh ứng với phím `1`–`6`. Bấm avatar hoặc phím `B` để mở ba lô, chia tab
-*Tất cả / Dụng cụ / Hạt giống / Nông sản / Vật liệu*.
+Góc dưới trái là avatar nhân vật, ngay trên nó là
+**cột sáu ô dụng cụ nhanh** ứng với phím `1`–`6` — cột dọc không tranh chỗ với
+bong bóng hành động ở giữa khung hình. Bấm ô để cầm, bấm lại ô đang chọn để
+**buông ra tay không** (không cầm gì thì không ô nào sáng lên khi rê chuột). Kéo
+ô này thả vào ô kia để đổi chỗ. Ô 6 luôn là ✖ dỡ bỏ.
+Bấm avatar hoặc phím `I` để mở ba lô, chia tab *Tất cả / Dụng cụ / Hạt giống /
+Nông sản / Vật liệu*.
 
 Ba lô là **lưới ô vuông 56px chỉ hiện biểu tượng**, khung thông tin nằm bên
 phải. Mọi kích thước chốt cứng ở CSS chứ không để nội dung quyết định: 6 cột
@@ -95,7 +99,7 @@ có món không cách nào tới được, mà chạm tới mọi món mới là
 `Q`/`E` đổi tab, `Enter` cầm món đang chọn lên.
 
 Ba lô mở thì bàn phím thuộc về UI: `Input.captured` cắt `moveAxis` và
-`justPressed` ngay ở nguồn (trừ `Esc` và `B`), nên không có chuyện nhân vật
+`justPressed` ngay ở nguồn (trừ `Esc` và `I`), nên không có chuyện nhân vật
 chạy sau lưng bảng đang mở. Chặn ở một chỗ, không rải `if (uiOpen)` khắp
 Engine.
 
@@ -105,38 +109,63 @@ chứ không theo thứ đang cầm, nên một ô "hạt cà rốt" sẽ không
 thích — khoá ngay ở chỗ cầm lên thì người chơi chỉ thấy giao diện đơ, không học
 được luật. Chuột phải lên một ô để gỡ dụng cụ ra.
 
+## Xây dựng: đặt xuống rồi tới làm
+
+Nhà chính đứng ở tâm đảo, là điểm xuất phát. Quanh nhà có **vòng tròn mờ bán
+kính 12 ô** — chỉ trong đó mới đặt được công trình. Bấm `B` mở bảng xây dựng,
+chọn một loại, rồi bấm vào ô đất trống trong vòng: một bãi cọc-dây hiện ra ở
+đó. Đặt bao nhiêu bãi tuỳ ý, `Esc` để thôi đặt. Mới chỉ có một loại: **luống
+đất** — xây xong thì ô đó thành luống đã xới, gieo hạt lên được.
+
+Đặt xuống là tức thì và miễn phí; công sức nằm ở chỗ **phải tới và đứng làm**.
+Cơ chế này dùng chung cho mọi công trình về sau, nên ghi rõ ở đây:
+
+- Mỗi loại công trình có **`workload`** — khối lượng công việc cần hoàn thành
+  (`data/buildings.ts`; luống đất là 20).
+- Người chơi có chỉ số **`work`**, mặc định 10: mỗi giây đứng xây trừ đi 10
+  workload. Luống đất mất 2 giây. Chỉ số này để sau nâng cấp (dụng cụ tốt hơn,
+  pet phụ việc) mà không đụng vào số liệu từng công trình.
+- Đứng cạnh bãi (trong tầm với 2.6 ô) thì trên bãi hiện `Ⓕ Xây luống đất`. Bấm
+  `F` là nhân vật quay mặt về bãi, chạy animation đóng cọc, và bong bóng đổi
+  thành thanh tiến độ.
+- **Di chuyển, bấm chuột, hay đổi dụng cụ là dừng ngay.** Tiến độ giữ nguyên
+  trong `tile.site.done`; quay lại bấm `F` là làm tiếp từ chỗ dở, kể cả sau khi
+  tắt game (bãi và tiến độ nằm trong save).
+- Đủ workload thì `Engine.finishBuild` đổi trạng thái ô theo loại công trình và
+  xoá bãi. Thêm công trình mới = thêm một mục vào `BUILDINGS` và một nhánh trong
+  `finishBuild`; phần đặt, hiện bong bóng, đếm tiến độ, lưu/khôi phục không phải
+  viết lại.
+
+Ô có bãi thì chỉ ✖ tác động được (dụng cụ khác rê qua không sáng), nên không
+có chuyện tưới hay gieo đè lên bãi đang xây dở.
+
 ## Gieo hạt: chọn một lần, gieo cả ruộng
 
-Cầm túi hạt bấm `F` trên luống trống thì **mở bảng chọn hạt** ở góc dưới phải,
+Cầm túi hạt bấm vào luống trống thì **mở bảng chọn hạt** ở góc dưới phải,
 không phải gieo một ô. Chọn một loại là gieo kín mọi luống trống, trái sang
 phải rồi trên xuống dưới, cho tới khi hết luống hoặc hết hạt. Hết luống trống
 thì bảng không mở nữa.
 
-Một luống hai chục ô mà bắt bấm `F` hai chục lần thì phần lặp lại chiếm hết chỗ
+Một luống hai chục ô mà bắt bấm hai chục lần thì phần lặp lại chiếm hết chỗ
 của phần thú vị. Việc gieo hàng loạt vẫn đi qua `FarmActions.perform` từng ô,
-nên mọi luật (đủ hạt, đủ sức, ô hợp lệ) chỉ nằm ở một chỗ và gieo cả ruộng
+nên mọi luật (đủ hạt, ô hợp lệ) chỉ nằm ở một chỗ và gieo cả ruộng
 không thể lệch khỏi gieo một ô.
 
-Vòng lặp chơi: **cuốc đất → gieo hạt → tưới → thu hoạch → bán → mua hạt tốt hơn.**
+Vòng lặp chơi: **xây luống → gieo hạt → tưới → thu hoạch → bán → mua hạt tốt hơn.**
 Cây khô vẫn lớn nhưng chậm 3 lần, nên tưới là việc đáng làm chứ không bắt buộc.
 
-Bắt pet: cầm bóng, lại gần pet hoang tới khi hiện bong bóng `Ⓕ BẮT` rồi bấm
-`F`. Pet hoang chỉ bỏ chạy khi bạn cầm bóng. Ném trượt thì pet mệt đi, lần sau
-dễ bắt hơn.
-
-**Bóng không ném bằng chuột.** Lối chuột nhắm vào một *ô*, không vào con pet:
-trượt một chút là bóng bay vào chỗ trống và mất một quả. `Space` còn tệ hơn, nó
-lấy ô mà chuột vừa rê qua — tức ném vào chỗ người chơi không hề nhìn. Chỉ còn
-`F`, mà `F` chỉ hiện BẮT khi đã có pet thật trong tầm ngắm, nên không ném hụt
-được. Bấm chuột lúc đang cầm bóng thì game nhắc một câu thay vì im lặng. Bắt được rồi thì vào bảng
-pet (`Tab`) giao việc — pet sẽ tự đi tưới / thu hoạch / nhặt gỗ mà không cần bạn.
+Bắt pet: cầm bóng, rê chuột lên pet hoang — nét mực của nó chuyển vàng khi
+trong tầm ném — rồi bấm. Bóng nhắm vào *con pet* chứ không vào ô dưới chân nó,
+nên không ném hụt vào chỗ trống. Pet hoang chỉ bỏ chạy khi bạn cầm bóng. Ném
+trượt thì pet mệt đi, lần sau dễ bắt hơn. Bắt được rồi thì vào bảng pet (`Tab`)
+giao việc — pet sẽ tự đi tưới / thu hoạch / nhặt gỗ mà không cần bạn.
 
 ## Stack
 
 - **Nuxt 4** ở chế độ SPA (`ssr: false`) — game cần WebGL, SSR không đem lại gì.
 - **Tailwind 4** qua plugin Vite, chỉ dùng cho HUD.
-- **three.js** — camera phối cảnh quỹ đạo sau lưng, địa hình có độ cao, vòm trời
-  gradient, và phong cách vẽ tay dựng từ ba thành phần: viền mực vỏ-lộn-ngược,
+- **three.js** — camera phối cảnh quỹ đạo sau lưng, đảo tròn phẳng giữa biển, vòm
+  trời gradient, và phong cách vẽ tay dựng từ ba thành phần: viền mực vỏ-lộn-ngược,
   ramp toon 2 bậc (mảng sáng phẳng + mảng bóng), và vân giấy ở tầng CSS.
 - **Firebase** (tuỳ chọn) — Auth ẩn danh + Firestore để lưu cloud.
 
@@ -154,7 +183,7 @@ app/game/                 ← TypeScript thuần, không import 'vue'
 │   └── rng.ts            PRNG có seed + value noise
 ├── world/
 │   ├── Grid.ts           Lưới tile — nguồn sự thật duy nhất về địa hình
-│   └── Heightmap.ts      Độ cao lưu theo GÓC ô nên đồi không nứt thành mảng
+│   └── Heightmap.ts      Sinh đảo tròn phẳng; độ cao lưu theo GÓC ô nên bờ không nứt
 ├── render/               Tầng three.js, chỉ đọc Grid rồi vẽ
 │   ├── SceneManager.ts   Ánh sáng, sương mù, các InstancedMesh
 │   ├── CameraRig.ts      Camera quỹ đạo — nguồn sự thật cho HƯỚNG di chuyển
@@ -169,7 +198,7 @@ app/game/                 ← TypeScript thuần, không import 'vue'
 │   ├── CropSystem.ts     Sinh trưởng theo thời gian
 │   ├── PetSystem.ts      Máy trạng thái AI + giao việc
 │   └── CatchSystem.ts    Ném bóng bắt pet
-├── data/                 Bảng số liệu cây trồng & pet
+├── data/                 Bảng số liệu cây trồng, pet, công trình (workload)
 └── save/                 Firestore + localStorage
 ```
 

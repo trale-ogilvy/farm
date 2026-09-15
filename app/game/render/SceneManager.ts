@@ -6,13 +6,14 @@ import { TerrainMesh } from './TerrainMesh'
 import { CameraRig } from './CameraRig'
 import { Sky } from './Sky'
 import { GrassField } from './GrassField'
-import { buildPropGeometry } from './models/props'
+import { buildPropGeometry, buildSiteGeometry } from './models/props'
 import { buildCropGeometry } from './models/crops'
 import { toonVertexColors } from './Materials'
-import { cropTransform, plotTransform, propTransform } from './instanceTransforms'
-import { TargetHighlight } from './TargetHighlight'
-import { makeInstancedOutline } from './Outline'
+import { cropTransform, plotTransform, propTransform, siteTransform } from './instanceTransforms'
+import { GLOW, TargetHighlight, type HighlightTone } from './TargetHighlight'
+import { addOutlines, makeInstancedOutline } from './Outline'
 
+/** Các prop vẽ theo lô; nhà chính không nằm đây vì nó là một mesh duy nhất. */
 const PROP_KINDS: PropKind[] = ['tree', 'rock', 'bush', 'stump']
 
 /**
@@ -52,13 +53,16 @@ export class SceneManager {
   private highlight = new TargetHighlight()
   private props = new Map<string, InstancedGroup>()
   private crops = new Map<string, InstancedGroup>()
+  private sites: InstancedGroup | null = null
+  private house: THREE.Mesh
+  private buildZone: THREE.Group
   private sun: THREE.DirectionalLight
   private hemi: THREE.HemisphereLight
   private ambient: THREE.AmbientLight
   private dummy = new THREE.Object3D()
   private raycaster = new THREE.Raycaster()
   private resizeObserver: ResizeObserver
-  private pickCache: { x: number; z: number } | null = null
+  private pickCache: { x: number; z: number; wx: number; wz: number } | null = null
   private projected = new THREE.Vector3()
 
   get camera(): THREE.PerspectiveCamera {
@@ -109,6 +113,7 @@ export class SceneManager {
 
     this.terrain = new TerrainMesh(grid)
     this.scene.add(
+      this.terrain.seabed,
       this.terrain.mesh,
       this.terrain.plotsOutline,
       this.terrain.plots,
@@ -121,7 +126,13 @@ export class SceneManager {
     this.scene.add(this.entityLayer)
     this.scene.add(this.highlight.mesh)
 
+    this.house = this.buildHouse()
+    this.scene.add(this.house)
+    this.buildZone = this.buildZoneRing()
+    this.scene.add(this.buildZone)
+
     this.rebuildProps()
+    this.rebuildSites()
 
     this.resizeObserver = new ResizeObserver(() => this.resize())
     this.resizeObserver.observe(canvas.parentElement ?? canvas)
@@ -196,20 +207,24 @@ export class SceneManager {
   }
 
   /**
-   * Ô dưới con trỏ chuột. Bắn tia thẳng vào mesh địa hình thay vì vào một mặt
-   * phẳng y=0 — với đồi núi thì mặt phẳng cho kết quả sai hẳn.
+   * Chỗ con trỏ chuột chỉ xuống mặt đất: ô lưới và điểm chính xác.
+   *
+   * Bắn tia vào mesh địa hình VÀ mặt nước, lấy hit gần nhất. Không dùng mặt
+   * phẳng y=0: bờ biển và lòng ao thấp hơn mặt đảo, chỉ xuống đó bằng mặt
+   * phẳng sẽ lệch ô. Mặt nước phải có trong danh sách vì đáy ao nằm sâu dưới
+   * mặt nước — bắn xuyên qua nước xuống đáy thì ô dưới con trỏ lệch theo góc nhìn.
    */
-  pickTile(ndcX: number, ndcY: number, moved: boolean): { x: number; z: number } | null {
+  pickGround(ndcX: number, ndcY: number, moved: boolean): typeof this.pickCache {
     if (!moved && this.pickCache) return this.pickCache
 
     this.raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera)
-    const hits = this.raycaster.intersectObject(this.terrain.mesh, false)
+    const hits = this.raycaster.intersectObjects([this.terrain.mesh, this.terrain.water], false)
     if (!hits.length) return (this.pickCache = null)
 
     const p = hits[0]!.point
     const x = Math.round(p.x)
     const z = Math.round(p.z)
-    this.pickCache = this.grid.inBounds(x, z) ? { x, z } : null
+    this.pickCache = this.grid.inBounds(x, z) ? { x, z, wx: p.x, wz: p.z } : null
     return this.pickCache
   }
 
@@ -218,7 +233,7 @@ export class SceneManager {
    * vẽ nó, và vị trí lấy từ đúng hàm transform đã đặt nó ở đó — nên lớp sáng
    * luôn trùng khít, kể cả khi vật thể được xoay và phóng ngẫu nhiên theo toạ độ.
    */
-  setHighlight(req: HighlightRequest | null): void {
+  setHighlight(req: HighlightRequest | null, tone: HighlightTone = 'ok'): void {
     if (!req) {
       this.highlight.hide()
       return
@@ -246,7 +261,7 @@ export class SceneManager {
       this.highlight.hide()
       return
     }
-    this.highlight.show(geo, this.dummy.matrix)
+    this.highlight.show(geo, this.dummy.matrix, tone)
   }
 
   /** Gọi lại khi địa hình hoặc prop thay đổi. */
@@ -254,16 +269,87 @@ export class SceneManager {
     this.terrain.rebuild(now)
     this.rebuildProps()
     this.rebuildCrops()
+    this.rebuildSites()
     this.grid.dirty.clear()
   }
 
+  private buildHouse(): THREE.Mesh {
+    const mesh = new THREE.Mesh(buildPropGeometry('house'), toonVertexColors())
+    mesh.castShadow = true
+    mesh.receiveShadow = true
+    const { x, z } = this.grid.home
+    mesh.position.set(x, this.grid.heights.tileHeight(x, z), z)
+    mesh.name = 'house'
+    addOutlines(mesh, 0.03)
+    return mesh
+  }
+
+  /**
+   * Vòng tròn mờ quanh nhà đánh dấu vùng được xây. Vẽ sát mặt đất bằng vật
+   * liệu không chịu ánh sáng và không ghi depth, để nó nằm dưới mọi thứ khác
+   * mà không bao giờ chớp với mặt cỏ.
+   */
+  private buildZoneRing(): THREE.Group {
+    const g = new THREE.Group()
+    const r = this.grid.buildRadius
+    const { x, z } = this.grid.home
+    const y = this.grid.heights.tileHeight(x, z) + 0.03
+
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(r - 0.22, r, 96),
+      new THREE.MeshBasicMaterial({
+        color: GLOW,
+        transparent: true,
+        opacity: 0.45,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    )
+    const fill = new THREE.Mesh(
+      new THREE.CircleGeometry(r - 0.22, 96),
+      new THREE.MeshBasicMaterial({
+        color: GLOW,
+        transparent: true,
+        opacity: 0.06,
+        depthWrite: false,
+      }),
+    )
+    for (const m of [ring, fill]) {
+      m.rotation.x = -Math.PI / 2
+      m.position.set(x, y, z)
+      m.renderOrder = 1
+      g.add(m)
+    }
+    g.name = 'buildZone'
+    return g
+  }
+
+  /** Bãi công trình đang chờ xây: một lô instanced như prop, dựng lại khi ô đổi. */
+  private rebuildSites(): void {
+    const list: Array<{ x: number; z: number }> = []
+    for (const tile of this.grid.tiles) if (tile.site) list.push({ x: tile.x, z: tile.z })
+
+    this.sites = this.ensureGroup(
+      { get: () => this.sites, set: (g) => (this.sites = g) },
+      buildSiteGeometry,
+      list.length,
+    )
+    list.forEach((pos, i) => {
+      siteTransform(this.dummy, this.grid, pos.x, pos.z)
+      this.sites!.mesh.setMatrixAt(i, this.dummy.matrix)
+    })
+    this.sites.mesh.count = list.length
+    this.sites.outline.count = list.length
+    this.sites.mesh.instanceMatrix.needsUpdate = true
+  }
+
   private ensureGroup(
-    map: Map<string, InstancedGroup>,
-    key: string,
+    slot: { get: () => InstancedGroup | undefined | null; set: (g: InstancedGroup) => void },
     geoFactory: () => THREE.BufferGeometry,
     needed: number,
+    thinOutline = false,
   ): InstancedGroup {
-    let group = map.get(key)
+    let group = slot.get()
     if (group && group.capacity >= needed) return group
 
     // InstancedMesh không nở ra được, nên cấp phát theo bội số 2 rồi tái dùng.
@@ -282,12 +368,17 @@ export class SceneManager {
     mesh.frustumCulled = false
 
     // Viền dùng chung instanceMatrix nên tự khớp; chỉ phải nhớ đồng bộ `count`.
-    const outline = makeInstancedOutline(mesh, key.includes(':') ? 0.016 : 0.045)
+    const outline = makeInstancedOutline(mesh, thinOutline ? 0.016 : 0.045)
     this.scene.add(outline, mesh)
 
     group = { mesh, outline, capacity }
-    map.set(key, group)
+    slot.set(group)
     return group
+  }
+
+  /** Bộ get/set cho một khoá trong Map, để `ensureGroup` không cần biết Map. */
+  private slotIn(map: Map<string, InstancedGroup>, key: string) {
+    return { get: () => map.get(key), set: (g: InstancedGroup) => void map.set(key, g) }
   }
 
   private rebuildProps(): void {
@@ -298,8 +389,7 @@ export class SceneManager {
 
     for (const kind of PROP_KINDS) {
       const group = this.ensureGroup(
-        this.props,
-        kind,
+        this.slotIn(this.props, kind),
         () => buildPropGeometry(kind),
         counts.get(kind) ?? 0,
       )
@@ -308,7 +398,7 @@ export class SceneManager {
 
     const cursorIdx = new Map<PropKind, number>()
     for (const tile of this.grid.tiles) {
-      if (!tile.prop) continue
+      if (!tile.prop || tile.prop === 'house') continue
       const group = this.props.get(tile.prop)!
       const i = cursorIdx.get(tile.prop) ?? 0
       group.outline.count = i + 1
@@ -344,10 +434,10 @@ export class SceneManager {
       const [typeId, stageStr] = key.split(':')
       const stage = Number(stageStr)
       const group = this.ensureGroup(
-        this.crops,
-        key,
+        this.slotIn(this.crops, key),
         () => buildCropGeometry(cropDef(typeId!), stage),
         list.length,
+        true,
       )
       list.forEach((pos, i) => {
         cropTransform(this.dummy, this.grid, pos.x, pos.z)
@@ -386,10 +476,16 @@ export class SceneManager {
     this.sky.dispose()
     this.grass.dispose()
     this.highlight.dispose()
-    for (const g of [...this.props.values(), ...this.crops.values()]) {
+    for (const g of [...this.props.values(), ...this.crops.values(), this.sites]) {
+      if (!g) continue
       g.mesh.geometry.dispose()
       g.mesh.dispose()
       g.outline.dispose()
+    }
+    this.house.geometry.dispose()
+    for (const m of this.buildZone.children as THREE.Mesh[]) {
+      m.geometry.dispose()
+      ;(m.material as THREE.Material).dispose()
     }
     this.renderer.dispose()
   }

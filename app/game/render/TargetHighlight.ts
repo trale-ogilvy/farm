@@ -1,7 +1,14 @@
 import * as THREE from 'three'
 
 /** Vàng ấm. Nổi trên cả nền cỏ xanh lẫn đất nâu mà không phá bảng màu pastel. */
-const GLOW = 0xffcf6b
+export const GLOW = 0xffcf6b
+/**
+ * Đỏ tươi: đúng mục tiêu nhưng ngoài tầm với — phải lại gần. Đỏ hẳn chứ không
+ * đỏ gạch: pha 45% với nền cỏ, đỏ gạch ra màu nâu y hệt mảng đất đã cuốc.
+ */
+export const GLOW_FAR = 0xf03a2a
+
+export type HighlightTone = 'ok' | 'far'
 
 /**
  * Lớp màng sáng phủ lên vật thể đang được nhắm.
@@ -19,6 +26,7 @@ export class TargetHighlight {
   readonly mesh: THREE.Mesh
   private mat: THREE.MeshBasicMaterial
   private empty = new THREE.BufferGeometry()
+  private tone: HighlightTone = 'ok'
 
   constructor() {
     this.mat = new THREE.MeshBasicMaterial({
@@ -39,8 +47,10 @@ export class TargetHighlight {
     this.mesh.name = 'highlight'
   }
 
-  show(geometry: THREE.BufferGeometry, matrix: THREE.Matrix4): void {
+  show(geometry: THREE.BufferGeometry, matrix: THREE.Matrix4, tone: HighlightTone): void {
     if (this.mesh.geometry !== geometry) this.mesh.geometry = geometry
+    this.mat.color.setHex(tone === 'far' ? GLOW_FAR : GLOW)
+    this.tone = tone
     this.mesh.matrix.copy(matrix)
     this.mesh.matrixWorldNeedsUpdate = true
     this.mesh.visible = true
@@ -53,7 +63,9 @@ export class TargetHighlight {
   /** Nhấp nháy chậm để mắt bắt được mà không gây khó chịu khi nhìn lâu. */
   update(elapsedSeconds: number): void {
     if (!this.mesh.visible) return
-    this.mat.opacity = 0.42 + Math.sin(elapsedSeconds * 4.2) * 0.15
+    // Đỏ đậm hơn vàng một chút: nó là lời từ chối, phải đọc ra ngay.
+    const base = this.tone === 'far' ? 0.55 : 0.42
+    this.mat.opacity = base + Math.sin(elapsedSeconds * 4.2) * 0.15
   }
 
   dispose(): void {

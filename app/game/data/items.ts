@@ -17,41 +17,21 @@ export interface ItemInfo {
   category: ItemCategory
 }
 
-/**
- * `needsTool` = phải đang cầm thứ này thì việc mới hiện ra.
- *
- * Túi hạt và liềm thì không: gieo với hái là việc của bàn tay, tới gần là làm
- * được. Chúng vẫn nằm trong danh sách vì nhân vật rút chúng ra trong animation,
- * và vì cầm sẵn trên tay cũng là một cách chơi.
- */
-export const TOOL_INFO: Record<
-  ToolKind,
-  { name: string; icon: string; hint: string; needsTool: boolean }
-> = {
-  hoe: { name: 'Cuốc', icon: '⛏️', hint: 'Mở luống trên cỏ', needsTool: true },
-  wateringCan: {
-    name: 'Bình tưới',
-    icon: '🪣',
-    hint: 'Tưới cây, múc nước ở ao',
-    needsTool: true,
-  },
-  seedBag: {
-    name: 'Túi hạt',
-    icon: '🌱',
-    hint: 'Gieo hạt xuống luống trống',
-    needsTool: false,
-  },
-  scythe: {
-    name: 'Liềm',
-    icon: '🌾',
-    hint: 'Thu hoạch cây đã chín',
-    needsTool: false,
-  },
-  axe: { name: 'Rìu', icon: '🪓', hint: 'Chặt cây, đập đá', needsTool: true },
-  ball: { name: 'Bóng bắt pet', icon: '🔴', hint: 'Ném vào pet hoang', needsTool: true },
+/** Mọi việc đều cần cầm đúng dụng cụ; `hint` nói dụng cụ đó bấm vào cái gì. */
+export const TOOL_INFO: Record<ToolKind, { name: string; icon: string; hint: string }> = {
+  wateringCan: { name: 'Bình tưới', icon: '🪣', hint: 'Tưới cây trên luống' },
+  seedBag: { name: 'Túi hạt', icon: '🌱', hint: 'Gieo hạt xuống luống trống' },
+  scythe: { name: 'Liềm', icon: '🌾', hint: 'Thu hoạch cây đã chín' },
+  axe: { name: 'Rìu', icon: '🪓', hint: 'Chặt cây, đập đá' },
+  ball: { name: 'Bóng bắt pet', icon: '🔴', hint: 'Ném vào pet hoang' },
+  remove: { name: 'Dỡ bỏ', icon: '✖', hint: 'Dỡ công trình đã xây hoặc đang xây dở' },
 }
 
-export const TOOL_IDS = Object.keys(TOOL_INFO) as ToolKind[]
+/** Dụng cụ dỡ bỏ: cố định ở ô nhanh cuối, không nằm trong ba lô, không kéo được. */
+export const REMOVE_TOOL: ToolKind = 'remove'
+
+/** Dụng cụ hiện trong ba lô và kéo được vào ô nhanh — trừ dụng cụ dỡ bỏ. */
+export const TOOL_IDS = (Object.keys(TOOL_INFO) as ToolKind[]).filter((id) => id !== REMOVE_TOOL)
 
 const CROP_ICONS: Record<string, string> = {
   turnip: '🥬',
@@ -67,8 +47,9 @@ const MATERIALS: Record<string, { name: string; icon: string }> = {
   stone: { name: 'Đá', icon: '🪨' },
 }
 
+/** Có phải dụng cụ đặt được vào ô nhanh không (dụng cụ dỡ bỏ thì không). */
 export function isTool(id: string): id is ToolKind {
-  return id in TOOL_INFO
+  return id in TOOL_INFO && id !== REMOVE_TOOL
 }
 
 export function cropIcon(id: string): string {

@@ -27,6 +27,15 @@ export function plotTransform(o: THREE.Object3D, grid: Grid, x: number, z: numbe
   return o
 }
 
+/** Bãi công trình: đặt thẳng, không xoay — cọc phải nằm đúng bốn góc ô. */
+export function siteTransform(o: THREE.Object3D, grid: Grid, x: number, z: number): THREE.Object3D {
+  o.position.set(x, grid.heights.tileHeight(x, z), z)
+  o.rotation.set(0, 0, 0)
+  o.scale.setScalar(1)
+  o.updateMatrix()
+  return o
+}
+
 /** Cây cối, đá, bụi: xoay quanh trục đứng và phóng to nhẹ. */
 export function propTransform(o: THREE.Object3D, grid: Grid, x: number, z: number): THREE.Object3D {
   const h = hash(x, z, 73856093, 19349663)

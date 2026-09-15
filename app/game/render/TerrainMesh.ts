@@ -1,13 +1,13 @@
 import * as THREE from 'three'
 import type { Grid } from '../world/Grid'
-import { WATER_LEVEL } from '../world/Heightmap'
+import { SEABED, WATER_LEVEL } from '../world/Heightmap'
 import { PALETTE, grassColorAt, soilColorAt, toonVertexColors } from './Materials'
 import { makeInstancedOutline } from './Outline'
 import { Y_TILLED, plotTransform } from './instanceTransforms'
 
 /**
  * Địa hình được nướng thành MỘT mesh duy nhất với màu ở vertex: 1 draw call cho
- * cả bản đồ. Rebuild toàn bộ khi có ô thay đổi — với 72×72 ô việc này tốn vài
+ * cả bản đồ. Rebuild toàn bộ khi có ô thay đổi — với 80×80 ô việc này tốn vài
  * mili-giây nên không cần cập nhật từng phần cho phức tạp.
  */
 export class TerrainMesh {
@@ -15,6 +15,7 @@ export class TerrainMesh {
   readonly plots: THREE.InstancedMesh
   readonly plotsOutline: THREE.InstancedMesh
   readonly water: THREE.Mesh
+  readonly seabed: THREE.Mesh
 
   private geo: THREE.BufferGeometry
   private positions: Float32Array
@@ -52,6 +53,7 @@ export class TerrainMesh {
     this.plotsOutline = makeInstancedOutline(this.plots, 0.03)
 
     this.water = this.buildWater()
+    this.seabed = buildSeabed(grid)
 
     this.rebuild(0)
   }
@@ -76,6 +78,9 @@ export class TerrainMesh {
           break
         case 'path':
           flat = soilColorAt(x, z, PALETTE.path)
+          break
+        case 'sand':
+          flat = soilColorAt(x, z, PALETTE.sand)
           break
         case 'soil':
           flat = soilColorAt(x, z, PALETTE.soil)
@@ -148,24 +153,18 @@ export class TerrainMesh {
   }
 
   /**
-   * Mặt nước là một mesh riêng, trong suốt, phủ đúng các ô ngập. Tách ra khỏi
-   * địa hình vì nó cần alpha blending và gợn sóng — hai thứ mà mesh đất không
-   * nên gánh.
+   * Mặt nước là MỘT mặt phẳng lớn ở đúng mực nước, trải xa quá mép lưới tới
+   * tận chân trời. Không cần cắt theo ô: đất đảo nằm trên mực nước nên tự che
+   * mặt phẳng này, còn lòng ao và đáy biển nằm dưới nên nước tự lộ ra ở đó.
+   * Tách khỏi mesh đất vì nó cần alpha blending và gợn sóng.
    */
   private buildWater(): THREE.Mesh {
-    const verts: number[] = []
-    for (const tile of this.grid.tiles) {
-      if (tile.ground !== 'water') continue
-      const x0 = tile.x - 0.5
-      const x1 = tile.x + 0.5
-      const z0 = tile.z - 0.5
-      const z1 = tile.z + 0.5
-      verts.push(x0, 0, z0, x0, 0, z1, x1, 0, z1, x0, 0, z0, x1, 0, z1, x1, 0, z0)
-    }
-
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3))
-    geo.computeVertexNormals()
+    const size = SEA_EXTENT * 2
+    // Chia lưới thưa: gợn sóng chỉ cần vài đỉnh mỗi đơn vị là đủ mượt, và
+    // 140² đỉnh cho cả đại dương là rẻ.
+    const geo = new THREE.PlaneGeometry(size, size, 140, 140)
+    geo.rotateX(-Math.PI / 2)
+    geo.translate(this.grid.width / 2, 0, this.grid.height / 2)
 
     const mat = new THREE.MeshToonMaterial({
       color: PALETTE.water,
@@ -191,6 +190,7 @@ export class TerrainMesh {
     const mesh = new THREE.Mesh(geo, mat)
     mesh.position.y = WATER_LEVEL
     mesh.renderOrder = 2
+    mesh.frustumCulled = false
     mesh.name = 'water'
     return mesh
   }
@@ -206,7 +206,29 @@ export class TerrainMesh {
     this.plotsOutline.dispose()
     this.water.geometry.dispose()
     ;(this.water.material as THREE.Material).dispose()
+    this.seabed.geometry.dispose()
+    ;(this.seabed.material as THREE.Material).dispose()
   }
+}
+
+/** Nửa cạnh của mặt biển và đáy biển, tính từ tâm bản đồ. Xa hơn tầm sương mù. */
+const SEA_EXTENT = 320
+
+/**
+ * Đáy biển ngoài mép lưới: một mặt phẳng phẳng lì cùng cao độ với đáy trong
+ * lưới, để nhìn xuyên qua nước thấy màu đáy liền mạch chứ không thấy vòm trời
+ * lộ ra dưới chân đảo.
+ */
+function buildSeabed(grid: Grid): THREE.Mesh {
+  const size = SEA_EXTENT * 2
+  const geo = new THREE.PlaneGeometry(size, size)
+  geo.rotateX(-Math.PI / 2)
+  geo.translate(grid.width / 2, 0, grid.height / 2)
+  const mesh = new THREE.Mesh(geo, new THREE.MeshToonMaterial({ color: PALETTE.waterBed }))
+  mesh.position.y = SEABED
+  mesh.frustumCulled = false
+  mesh.name = 'seabed'
+  return mesh
 }
 
 /**

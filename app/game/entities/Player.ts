@@ -42,12 +42,13 @@ export class Player {
     plant: 0.55,
     harvest: 0.5,
     throw: 0.45,
+    build: 0.6,
   }
 
   /**
-   * Chạy animation cho một hành động, đồng thời cầm tạm đúng dụng cụ của việc
-   * đó. Hotbar không đổi: người chơi bấm F là làm việc trước mặt, không phải
-   * chọn dụng cụ rồi mới làm.
+   * Chạy animation cho một hành động. `tool` cho phép cầm tạm một dụng cụ khác
+   * trong lúc diễn mà không đổi hotbar; hiện mọi việc đều dùng đúng thứ đang
+   * cầm nên thường bỏ trống.
    */
   playAction(anim: ActionAnim, tool?: ToolKind): void {
     this.action = { anim, t: 0, duration: Player.DURATION[anim] }
@@ -88,8 +89,7 @@ export class Player {
     const dts = dt / 1000
     const axis = input.moveAxis()
     const running = input.isDown('ShiftLeft') || input.isDown('ShiftRight')
-    // Hết sức thì không chạy được nữa, buộc người chơi phải nghỉ/ăn.
-    const maxSpeed = running && this.state.energy > 5 ? RUN_SPEED : WALK_SPEED
+    const maxSpeed = running ? RUN_SPEED : WALK_SPEED
 
     // axis.y = -1 khi bấm W, nên đổi dấu để W ra hướng "tiến".
     const dirX = camRight.x * axis.x + camForward.x * -axis.y
@@ -119,10 +119,7 @@ export class Player {
       this.state.facing = Math.atan2(dirX, dirZ)
     }
 
-    if (speed01 > 0.02) {
-      this.phase += dts * (6 + speed01 * 5)
-      if (running) this.state.energy = Math.max(0, this.state.energy - dts * 1.6)
-    }
+    if (speed01 > 0.02) this.phase += dts * (6 + speed01 * 5)
 
     this.rig.root.position.set(
       this.state.x,
@@ -179,15 +176,7 @@ export class Player {
     return true
   }
 
-  /** Ô ngay trước mặt người chơi — đích mặc định khi không rê chuột. */
-  frontTile(): { x: number; z: number } {
-    return {
-      x: Math.round(this.state.x + Math.sin(this.state.facing)),
-      z: Math.round(this.state.z + Math.cos(this.state.facing)),
-    }
-  }
-
-  setTool(tool: ToolKind): void {
+  setTool(tool: ToolKind | null): void {
     this.state.tool = tool
     this.syncToolMesh()
   }
@@ -215,7 +204,7 @@ export class Player {
  * Đặt dáng nhân vật theo tiến độ `p` (0..1) của một hành động.
  *
  * Chạy SAU animateWalk và ghi đè lên tay phải, nên hành động luôn thắng chu kỳ
- * đi bộ — người chơi vừa đi vừa bấm F vẫn thấy động tác rõ ràng.
+ * đi bộ — người chơi vừa đi vừa bấm chuột vẫn thấy động tác rõ ràng.
  */
 function applyActionPose(rig: Rig, anim: ActionAnim, p: number): void {
   const arm = rig.armR
@@ -238,6 +227,15 @@ function applyActionPose(rig: Rig, anim: ActionAnim, p: number): void {
       const reach = p < 0.2 ? p / 0.2 : p < 0.78 ? 1 : 1 - (p - 0.78) / 0.22
       if (arm) arm.rotation.x = reach * 1.0
       rig.bob.rotation.x = reach * 0.16
+      break
+    }
+    case 'build': {
+      // Đóng cọc: vung nhẹ liên tục. Nhịp ngắn hơn cú bổ vì được lặp lại suốt
+      // lúc xây; khoảng nghỉ giữa hai nhịp là lúc nó đọc ra là "đang làm".
+      const arc = Math.sin(p * Math.PI)
+      if (arm) arm.rotation.x = -0.6 + arc * 1.5
+      rig.bob.rotation.x = arc * 0.18
+      rig.bob.position.y = walkBobY - arc * 0.06
       break
     }
     case 'plant': {
@@ -276,7 +274,8 @@ function shortestAngle(from: number, to: number): number {
 }
 
 /** Dụng cụ cầm tay, dựng bằng vài khối để nhìn vào là biết đang cầm gì. */
-function buildToolMesh(tool: ToolKind): THREE.Object3D | null {
+function buildToolMesh(tool: ToolKind | null): THREE.Object3D | null {
+  if (!tool) return null
   const group = new THREE.Group()
   const handle = () => {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.6, 5), toon(0x8a6a45))
@@ -285,13 +284,6 @@ function buildToolMesh(tool: ToolKind): THREE.Object3D | null {
   }
 
   switch (tool) {
-    case 'hoe': {
-      const h = handle()
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 0.05), toon(0x9aa0a6))
-      head.position.set(0.07, -0.28, 0)
-      group.add(h, head)
-      break
-    }
     case 'axe': {
       const h = handle()
       const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.04), toon(0xb8bcc2))

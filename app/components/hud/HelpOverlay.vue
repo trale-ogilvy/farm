@@ -25,28 +25,29 @@ watch(open, (v) => {
 })
 
 const ROWS = [
-  ['F', 'Làm việc trước mặt — xem bong bóng trên mục tiêu'],
-  ['1 – 6', 'Chọn dụng cụ — chỉ cần cho cuốc / tưới / chặt / ném bóng'],
+  ['Chuột trái', 'Dùng dụng cụ đang cầm lên thứ dưới con trỏ'],
+  ['1 – 6', 'Cầm dụng cụ ở cột ô nhanh — bấm lại để buông ra'],
+  ['F', 'Xây công trình đã đặt khi đứng cạnh nó'],
   ['WASD / ←↑→↓', 'Di chuyển theo hướng camera'],
   ['Giữ chuột phải', 'Xoay camera quanh nhân vật'],
   ['Q / E', 'Xoay camera bằng bàn phím'],
   ['Cuộn chuột', 'Kéo camera xa / gần'],
-  ['Shift', 'Chạy (tốn sức)'],
-  ['Chuột trái / Space', 'Dùng dụng cụ đang cầm — trừ bóng, bóng chỉ ném bằng F'],
-  ['B', 'Ba lô — kéo dụng cụ xuống ô nhanh'],
-  ['R', 'Ăn nông sản để hồi sức'],
+  ['Shift', 'Chạy'],
+  ['B', 'Bảng xây dựng — chọn công trình rồi đặt xuống đất'],
+  ['I', 'Ba lô — kéo dụng cụ sang cột ô nhanh'],
   ['Tab', 'Bảng pet'],
   ['Esc', 'Đóng bảng đang mở'],
 ]
 
 const FLOW = [
-  ['🅕', 'Đứng cạnh mục tiêu là hiện bong bóng — bấm F làm đúng việc đó'],
-  ['⛏️', 'Cuốc, tưới, chặt, ném bóng: phải cầm đúng đồ mới hiện bong bóng'],
-  ['✋', 'Gieo hạt và thu hoạch thì tay không cũng làm được, chỉ cần tới gần'],
-  ['🌱', 'Bấm F trên luống trống — chọn một loại là gieo kín ruộng'],
-  ['🪣', 'Múc nước ở ao rồi tưới — cây khô lớn chậm 3 lần'],
-  ['🌾', 'Thu hoạch khi cây đã chín'],
-  ['🔴', 'Cầm bóng, đứng gần pet hoang tới khi hiện BẮT rồi bấm F'],
+  ['🖱️', 'Chọn dụng cụ trước, rồi bấm vào thứ cần làm — rê chuột qua là nó sáng lên'],
+  ['🟡', 'Sáng vàng: bấm được. Sáng đỏ: đúng thứ đó nhưng xa quá, lại gần hơn'],
+  ['🌾', 'Liềm lên cây chín, rìu lên cây / đá, bình nước lên cây khô'],
+  ['✖', 'Ô cuối là dụng cụ dỡ bỏ: bấm vào luống hoặc bãi đang xây để dỡ (có hỏi lại)'],
+  ['🔨', 'Bấm B, chọn Luống đất, đặt vào vòng tròn quanh nhà, tới gần bấm F để xây'],
+  ['🌱', 'Cầm túi hạt bấm vào luống trống — chọn một loại là gieo kín ruộng'],
+  ['🪣', 'Bình tưới không bao giờ cạn — cây khô lớn chậm 3 lần'],
+  ['🔴', 'Cầm bóng bấm vào pet hoang trong tầm để bắt'],
 ]
 </script>
 

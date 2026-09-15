@@ -7,6 +7,7 @@ import { petDef, rollWildPetId } from '../data/pets'
 import { cropDef, isHarvestable } from '../data/crops'
 import { animateWalk, buildPetRig, type Rig } from '../render/models/character'
 import { setOutlineHighlight } from '../render/Outline'
+import type { HighlightTone } from '../render/TargetHighlight'
 import { WET_DURATION } from './CropSystem'
 import { addItem } from './FarmActions'
 import { mulberry32 } from '../core/rng'
@@ -48,6 +49,7 @@ export class PetSystem {
   private wildTimer = 0
   private uidCounter = 0
   private highlighted: string | null = null
+  private highlightTone: HighlightTone = 'ok'
 
   constructor(
     private grid: Grid,
@@ -444,13 +446,14 @@ export class PetSystem {
   }
 
   /** Làm sáng nét mực của một pet, hoặc tắt hết khi truyền null. */
-  setHighlight(uid: string | null): void {
-    if (uid === this.highlighted) return
+  setHighlight(uid: string | null, tone: HighlightTone = 'ok'): void {
+    if (uid === this.highlighted && tone === this.highlightTone) return
     const prev = this.highlighted ? this.runtime.get(this.highlighted) : null
-    if (prev) setOutlineHighlight(prev.rig.root, false)
+    if (prev) setOutlineHighlight(prev.rig.root, null)
     const next = uid ? this.runtime.get(uid) : null
-    if (next) setOutlineHighlight(next.rig.root, true)
+    if (next) setOutlineHighlight(next.rig.root, tone)
     this.highlighted = next ? uid : null
+    this.highlightTone = tone
   }
 
   // ------------------------------------------------------------------- taming

@@ -15,6 +15,12 @@ useHead({ title: 'Nông trại' })
     <HudStatusBar />
     <HudSideButtons />
     <HudHotbar />
+    <div class="absolute bottom-4 left-4">
+      <HudPlayerAvatar />
+    </div>
+    <HudBuildMenu />
+    <HudBuildPrompt />
+    <HudRemoveConfirm />
     <HudBackpack />
     <HudSeedPicker />
     <HudPetPanel />

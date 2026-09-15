@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { GLOW, GLOW_FAR, type HighlightTone } from './TargetHighlight'
 
 /** Màu mực. Nâu ấm chứ không phải đen — đen làm cảnh bị "in ấn", mất vẻ vẽ tay. */
 export const INK = 0x4a3728
@@ -100,18 +101,19 @@ export function makeInstancedOutline(
   return shell
 }
 
-/** Nét mực của mục tiêu: dày hơn và chuyển sang vàng. */
-const HIGHLIGHT_INK = 0xffcf6b
+/** Nét mực của mục tiêu: dày hơn và đổi màu — vàng trong tầm, đỏ ngoài tầm. */
 const HIGHLIGHT_THICKNESS = 0.055
 
-let highlightMat: THREE.ShaderMaterial | null = null
+const highlightMats = new Map<HighlightTone, THREE.ShaderMaterial>()
 
-function highlightMaterial(): THREE.ShaderMaterial {
-  if (!highlightMat) {
-    highlightMat = outlineMaterial(HIGHLIGHT_THICKNESS)
-    highlightMat.uniforms.uColor!.value = new THREE.Color(HIGHLIGHT_INK)
+function highlightMaterial(tone: HighlightTone): THREE.ShaderMaterial {
+  let mat = highlightMats.get(tone)
+  if (!mat) {
+    mat = outlineMaterial(HIGHLIGHT_THICKNESS)
+    mat.uniforms.uColor!.value = new THREE.Color(tone === 'far' ? GLOW_FAR : GLOW)
+    highlightMats.set(tone, mat)
   }
-  return highlightMat
+  return mat
 }
 
 /**
@@ -122,13 +124,13 @@ function highlightMaterial(): THREE.ShaderMaterial {
  * dày lên — cùng một thông điệp "cái này đang được nhắm", bằng phương tiện mà
  * cấu trúc của pet cho phép.
  */
-export function setOutlineHighlight(root: THREE.Object3D, on: boolean): void {
+export function setOutlineHighlight(root: THREE.Object3D, tone: HighlightTone | null): void {
   root.traverse((obj) => {
     const mesh = obj as THREE.Mesh
     if (!mesh.userData?.isOutline) return
-    if (on) {
+    if (tone) {
       if (!mesh.userData.baseMaterial) mesh.userData.baseMaterial = mesh.material
-      mesh.material = highlightMaterial()
+      mesh.material = highlightMaterial(tone)
     } else if (mesh.userData.baseMaterial) {
       mesh.material = mesh.userData.baseMaterial as THREE.Material
     }
@@ -136,8 +138,8 @@ export function setOutlineHighlight(root: THREE.Object3D, on: boolean): void {
 }
 
 export function disposeOutlines(): void {
-  highlightMat?.dispose()
-  highlightMat = null
+  for (const mat of highlightMats.values()) mat.dispose()
+  highlightMats.clear()
   for (const mat of cache.values()) mat.dispose()
   cache.clear()
 }

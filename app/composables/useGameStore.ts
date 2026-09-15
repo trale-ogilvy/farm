@@ -1,6 +1,6 @@
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import type { Engine } from '~/game/core/Engine'
-import type { InventoryItem, JobKind, PetDef, ToolKind } from '~/game/types'
+import type { BuildingKind, InventoryItem, JobKind, PetDef, ToolKind } from '~/game/types'
 import { petDef } from '~/game/data/pets'
 import { TOOL_IDS, isTool, itemInfo } from '~/game/data/items'
 
@@ -22,7 +22,7 @@ export interface Toast {
   kind: 'info' | 'good' | 'bad'
 }
 
-export type Panel = 'none' | 'pets' | 'shop' | 'pokedex' | 'backpack'
+export type Panel = 'none' | 'pets' | 'shop' | 'pokedex' | 'backpack' | 'build'
 
 /**
  * Trạng thái UI phản chiếu từ engine. Cố ý KHÔNG để Vue theo dõi dữ liệu game
@@ -34,11 +34,8 @@ const engineRef = shallowRef<Engine | null>(null)
 
 const hud = reactive({
   coins: 0,
-  energy: 100,
-  maxEnergy: 100,
-  water: 0,
-  maxWater: 20,
-  tool: 'hoe' as ToolKind,
+  tool: null as ToolKind | null,
+  work: 10,
   quickSlots: [] as Array<ToolKind | null>,
   selectedSeed: 'turnip',
   inventory: [] as InventoryItem[],
@@ -53,6 +50,10 @@ const panel = ref<Panel>('none')
 const seedPicker = ref(false)
 /** Số luống trống — quyết định bảng chọn hạt còn cho chọn hay không. */
 const emptyPlots = ref(0)
+/** Loại công trình đang đặt bằng chuột; null = không ở chế độ đặt. */
+const buildMode = ref<BuildingKind | null>(null)
+/** Hộp thoại xác nhận dỡ công trình; null = đóng. */
+const removeConfirm = ref<{ x: number; z: number; kind: BuildingKind; hasCrop: boolean } | null>(null)
 const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
 const backend = ref<'firebase' | 'local'>('local')
 const ready = ref(false)
@@ -62,8 +63,10 @@ let toastId = 0
 
 // Đăng ký một lần ở tầng module, không phải trong useGameStore(): hàm đó chạy
 // lại ở mỗi component dùng store, watch sẽ nhân lên theo số component.
-watch(panel, (p) => {
-  engineRef.value?.setInputCaptured(p === 'backpack')
+// Hộp thoại xác nhận cũng chiếm bàn phím: đang hỏi mà nhân vật vẫn chạy được
+// thì câu hỏi mất nghĩa.
+watch([panel, removeConfirm], ([p, rc]) => {
+  engineRef.value?.setInputCaptured(p === 'backpack' || rc !== null)
 })
 
 export function useGameStore() {
@@ -85,9 +88,16 @@ export function useGameStore() {
     next.bus.on('ui:seedPicker', () => {
       seedPicker.value = true
     })
+    next.bus.on('build:changed', (kind) => {
+      buildMode.value = kind
+    })
+    next.bus.on('ui:confirmRemove', (req) => {
+      removeConfirm.value = req
+    })
     // Esc đóng từ trong ra ngoài: bảng chọn hạt trước, rồi mới tới bảng lớn.
     next.bus.on('ui:escape', () => {
-      if (seedPicker.value) seedPicker.value = false
+      if (removeConfirm.value) removeConfirm.value = null
+      else if (seedPicker.value) seedPicker.value = false
       else if (panel.value !== 'none') panel.value = 'none'
     })
     next.bus.on('toast', ({ text, kind }) => pushToast(text, kind ?? 'info'))
@@ -101,6 +111,8 @@ export function useGameStore() {
     toasts.value = []
     seedPicker.value = false
     panel.value = 'none'
+    buildMode.value = null
+    removeConfirm.value = null
   }
 
   function syncPlayer() {
@@ -108,11 +120,8 @@ export function useGameStore() {
     if (!e) return
     const s = e.player.state
     hud.coins = s.coins
-    hud.energy = s.energy
-    hud.maxEnergy = s.maxEnergy
-    hud.water = s.water
-    hud.maxWater = s.maxWater
     hud.tool = s.tool
+    hud.work = s.work
     hud.quickSlots = [...s.quickSlots]
     hud.selectedSeed = s.selectedSeed
     emptyPlots.value = e.emptyPlots()
@@ -154,12 +163,10 @@ export function useGameStore() {
     }, 2600)
   }
 
-  /** Cập nhật thanh sức/nước liên tục — các giá trị này đổi mỗi frame. */
+  /** Cập nhật thể lực pet liên tục khi bảng pet đang mở — giá trị đổi mỗi frame. */
   function pollVitals() {
     const e = engineRef.value
     if (!e) return
-    hud.energy = e.player.state.energy
-    hud.water = e.player.state.water
     if (panel.value === 'pets') {
       for (const view of pets.value) {
         const live = e.pets.byUid(view.uid)
@@ -214,6 +221,8 @@ export function useGameStore() {
     panel,
     seedPicker,
     emptyPlots,
+    buildMode,
+    removeConfirm,
     saveState,
     backend,
     ready,

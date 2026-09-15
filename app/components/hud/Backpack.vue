@@ -68,9 +68,7 @@ const detailLines = computed(() => {
     const slot = slotOf(item.tool)
     return [
       info.hint,
-      info.needsTool
-        ? 'Phải đang cầm thì việc mới hiện ra'
-        : 'Không cần cầm — tới gần là làm được',
+      'Chọn ở ô nhanh rồi bấm chuột vào mục tiêu',
       slot >= 0 ? `Đang ở ô nhanh số ${slot + 1}` : 'Chưa nằm ở ô nhanh nào',
     ]
   }
@@ -82,7 +80,7 @@ const detailLines = computed(() => {
   }
   if (item.category === 'crop') {
     const crop = CROPS[item.id]
-    return crop ? [`Bán được ${crop.sellPrice} xu`, 'Ăn được để hồi sức (phím R)'] : []
+    return crop ? [`Bán được ${crop.sellPrice} xu`] : []
   }
   return ['Nguyên liệu thu từ chặt cây, đập đá']
 })

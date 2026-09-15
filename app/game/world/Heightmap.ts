@@ -82,27 +82,31 @@ export interface HeightGenOptions {
   width: number
   height: number
   seed: number
-  /** Nửa cạnh của cao nguyên phẳng dành cho khu trồng trọt. */
-  farmHalf: number
+  /** Bán kính đảo tính từ tâm bản đồ, chưa kể mép nhấp nhô. */
+  islandRadius: number
   pond: { x: number; z: number; r: number }
 }
 
+/** Đáy biển quanh đảo. Cũng là cao độ của mặt phẳng đáy kéo ra tới chân trời. */
+export const SEABED = WATER_LEVEL - 1.2
+
+/** Bờ biển trải trên bao nhiêu ô, từ mép đảo xuống tới đáy. */
+const SHORE_WIDTH = 6
+
 /**
- * Sinh địa hình đồi thoải.
+ * Sinh địa hình đảo tròn, mặt đảo PHẲNG hoàn toàn ở cao độ 0.
  *
- * Ba ràng buộc chi phối thiết kế này:
- *  1. Khu trồng trọt phải PHẲNG TUYỆT ĐỐI — luống cày trên dốc trông sai và
- *     việc canh ô sẽ khó chịu.
- *  2. Đồi phải thoải, vì pet chỉ biết đi thẳng và né một bước; dốc đứng giữa
- *     bản đồ sẽ làm chúng kẹt.
- *  3. Rìa bản đồ phải cao lên thành vách, vừa chặn người chơi đi ra ngoài vừa
- *     tạo hậu cảnh cho camera BotW nhìn xa.
+ * Phẳng tuyệt đối vì luống cày trên dốc trông sai, và pet chỉ biết đi thẳng
+ * nên không có gì để chúng kẹt. Rào chắn bản đồ không còn là vách đá mà là
+ * biển: bờ thoải xuống đáy, ô nào chìm dưới mực nước thì không đi được, nên
+ * người chơi tự dừng ở mép nước mà không cần tường vô hình.
+ *
+ * Bờ được trải trên SHORE_WIDTH ô để độ dốc mỗi ô luôn dưới MAX_WALKABLE_STEP,
+ * nhờ vậy đi được xuống tận mép nước để múc.
  */
 export function generateHeights(opts: HeightGenOptions): Heightmap {
   const map = new Heightmap(opts.width, opts.height)
-  const n1 = valueNoise2D(opts.seed)
-  const n2 = valueNoise2D(opts.seed ^ 0x9e37)
-  const n3 = valueNoise2D(opts.seed ^ 0x51ed)
+  const coast = valueNoise2D(opts.seed ^ 0x9e37)
 
   const cx = opts.width / 2
   const cz = opts.height / 2
@@ -112,34 +116,22 @@ export function generateHeights(opts: HeightGenOptions): Heightmap {
       const wx = i - 0.5
       const wz = j - 0.5
 
-      // Ba tần số chồng nhau: đồi lớn, gò nhỏ, và gợn mặt đất.
-      let h =
-        (n1(wx * 0.045, wz * 0.045) - 0.5) * 3.0 +
-        (n2(wx * 0.11, wz * 0.11) - 0.5) * 0.95 +
-        (n3(wx * 0.31, wz * 0.31) - 0.5) * 0.25
+      // Mép đảo nhấp nhô nhẹ theo góc phương vị: vẫn đọc ra là hình tròn,
+      // nhưng không phải cái đĩa compa. Lấy mẫu nhiễu trên vòng tròn đơn vị
+      // nên đường bờ tự khép kín, không có mối nối.
+      const dist = Math.hypot(wx - cx, wz - cz)
+      const angle = Math.atan2(wz - cz, wx - cx)
+      const wobble = (coast(Math.cos(angle) * 2.2 + 7, Math.sin(angle) * 2.2 + 7) - 0.5) * 3
+      const shore = dist - (opts.islandRadius + wobble)
 
-      // Vách bao quanh bản đồ. Dùng luỹ thừa bậc 3 chứ không phải smoothstep:
-      // phần trong thoải tới mức đi được, phần ngoài dựng đứng vượt ngưỡng dốc
-      // nên tự thành rào chắn. Đỉnh vách cố ý thấp — vách cao che sạch bầu trời
-      // và làm mất cảm giác thế giới mở.
-      const edge = Math.min(wx, wz, opts.width - wx, opts.height - wz)
-      if (edge < 12) {
-        const t = 1 - Math.max(0, edge) / 12
-        h += Math.pow(t, 3) * 11
-      }
+      let h = lerp(0, SEABED, smoothstep(0, SHORE_WIDTH, shore))
 
-      // Lòng ao: khoét xuống dưới mực nước.
+      // Lòng ao: khoét xuống cùng độ sâu với biển. Bờ ao cũng trải rộng như
+      // bờ biển để đi được xuống sát mép nước mà múc.
       const pd = Math.hypot(wx - opts.pond.x, wz - opts.pond.z)
-      if (pd < opts.pond.r + 3) {
-        const t = 1 - smoothstep(opts.pond.r - 1, opts.pond.r + 3, pd)
-        h = lerp(h, WATER_LEVEL - 1.5, t)
-      }
-
-      // Cao nguyên nông trại: ép phẳng về 0, chuyển tiếp mượt ra ngoài 6 ô.
-      const fd = Math.max(Math.abs(wx - cx), Math.abs(wz - cz))
-      if (fd < opts.farmHalf + 6) {
-        const t = 1 - smoothstep(opts.farmHalf, opts.farmHalf + 6, fd)
-        h = lerp(h, 0, t)
+      if (pd < opts.pond.r + SHORE_WIDTH) {
+        const t = smoothstep(opts.pond.r - 1, opts.pond.r + SHORE_WIDTH - 1, pd)
+        h = Math.min(h, lerp(SEABED, 0, t))
       }
 
       map.setCorner(i, j, h)

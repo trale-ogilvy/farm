@@ -9,12 +9,14 @@ export class Input {
 
   /** Toạ độ chuột chuẩn hoá -1..1, dùng thẳng cho Raycaster. */
   pointer = { x: 0, y: 0 }
-  /** Chuột trái: dùng dụng cụ. Tách khỏi chuột phải để xoay camera không đụng ô. */
-  primaryDown = false
-  primaryJustDown = false
-  secondaryDown = false
+  /** Con trỏ có đang nằm trên canvas không — rời sang HUD thì thôi highlight. */
+  pointerInside = false
   /** Con trỏ đã di chuyển từ frame trước chưa — dùng để bỏ qua raycast thừa. */
   pointerMoved = false
+  /** Chuột trái vừa bấm xuống trong frame này: dùng dụng cụ lên chỗ đang chỉ. */
+  primaryJustDown = false
+  /** Chuột phải đang giữ: xoay camera. */
+  secondaryDown = false
   /** Quãng kéo chuột phải tích luỹ trong frame, đơn vị pixel. */
   rotateDelta = { x: 0, y: 0 }
   /** Bánh xe cuộn tích luỹ trong frame, dùng để zoom. */
@@ -29,7 +31,7 @@ export class Input {
   captured = false
 
   /** Vẫn lọt qua khi bị chiếm — nếu không thì không còn đường đóng bảng. */
-  private static readonly ESCAPES = new Set(['Escape', 'KeyB'])
+  private static readonly ESCAPES = new Set(['Escape', 'KeyI'])
 
   private el: HTMLElement
   private bound: Array<[string, EventListener, EventTarget]> = []
@@ -40,10 +42,11 @@ export class Input {
     this.listen(window, 'keyup', (e) => this.onKey(e as KeyboardEvent, false))
     this.listen(window, 'blur', () => {
       this.down.clear()
-      this.primaryDown = false
       this.secondaryDown = false
     })
     this.listen(el, 'pointermove', (e) => this.onPointerMove(e as PointerEvent))
+    this.listen(el, 'pointerenter', () => (this.pointerInside = true))
+    this.listen(el, 'pointerleave', () => (this.pointerInside = false))
     this.listen(el, 'pointerdown', (e) => this.onPointerDown(e as PointerEvent))
     this.listen(window, 'pointerup', (e) => this.onPointerUp(e as PointerEvent))
     this.listen(el, 'wheel', (e) => {
@@ -69,7 +72,7 @@ export class Input {
       if (!this.down.has(code)) this.pressed.add(code)
       this.down.add(code)
       // Chặn cuộn trang khi bấm phím điều khiển.
-      if (code.startsWith('Arrow') || code === 'Space' || code === 'Tab') e.preventDefault()
+      if (code.startsWith('Arrow') || code === 'Tab') e.preventDefault()
     } else {
       this.down.delete(code)
       this.released.add(code)
@@ -83,6 +86,7 @@ export class Input {
     if (nx !== this.pointer.x || ny !== this.pointer.y) this.pointerMoved = true
     this.pointer.x = nx
     this.pointer.y = ny
+    this.pointerInside = true
 
     // Giữ chuột phải và rê = xoay camera. movementX/Y đã tính sẵn quãng kéo nên
     // không phải tự nhớ vị trí frame trước.
@@ -95,7 +99,6 @@ export class Input {
   private onPointerDown(e: PointerEvent) {
     this.onPointerMove(e)
     if (e.button === 0) {
-      this.primaryDown = true
       this.primaryJustDown = true
     } else if (e.button === 2) {
       this.secondaryDown = true
@@ -104,7 +107,6 @@ export class Input {
   }
 
   private onPointerUp(e: PointerEvent) {
-    if (e.button === 0) this.primaryDown = false
     if (e.button === 2) {
       this.secondaryDown = false
       this.el.releasePointerCapture?.(e.pointerId)
