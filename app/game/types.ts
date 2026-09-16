@@ -103,6 +103,12 @@ export interface PetDef {
   /** Hình dáng thân — quyết định hàm dựng mesh nào được dùng. */
   body: 'round' | 'tall' | 'long'
   ears: 'none' | 'long' | 'horn'
+  /**
+   * Khoá model glTF ở `render/models/petModels.ts`. Có thì pet vẽ bằng model
+   * có xương + animation; các trường hình dáng ở trên chỉ còn là phương án dự
+   * phòng lúc chưa tải xong hoặc tải lỗi.
+   */
+  model?: string
 }
 
 export interface Pet {

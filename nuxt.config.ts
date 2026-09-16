@@ -16,7 +16,15 @@ export default defineNuxtConfig({
       // hiện lúc chạy, mỗi lần phát hiện là một lần "new dependencies
       // optimized" kèm full reload — đây là nguyên nhân phổ biến nhất của việc
       // trang tự tải lại ngẫu nhiên khi dev.
-      include: ['three', 'three/examples/jsm/loaders/GLTFLoader.js', 'firebase/app', 'firebase/auth', 'firebase/firestore'],
+      include: [
+        'three',
+        'three/examples/jsm/loaders/GLTFLoader.js',
+        'three/examples/jsm/controls/OrbitControls.js',
+        'three/examples/jsm/utils/SkeletonUtils.js',
+        'firebase/app',
+        'firebase/auth',
+        'firebase/firestore',
+      ],
     },
   },
   app: {

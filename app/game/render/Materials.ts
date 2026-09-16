@@ -94,6 +94,28 @@ export function toonVertexColors(): THREE.MeshToonMaterial {
   return mat
 }
 
+/**
+ * Toon có texture, cho model ngoài giữ nguyên texture (pet có rig — không nướng
+ * được vertex color vì geometry biến dạng theo xương). Cache theo texture.
+ */
+export function toonTextured(
+  map: THREE.Texture,
+  color = 0xffffff,
+  emissiveMap: THREE.Texture | null = null,
+): THREE.MeshToonMaterial {
+  const key = `toon:map:${map.uuid}:${color}:${emissiveMap?.uuid ?? ''}`
+  const hit = cache.get(key)
+  if (hit) return hit as THREE.MeshToonMaterial
+  // Mắt/hoa văn phát sáng của một số model nằm ở emissive; bỏ đi thì thành mảng đen.
+  const mat = new THREE.MeshToonMaterial({ map, color, gradientMap: toonRamp() })
+  if (emissiveMap) {
+    mat.emissiveMap = emissiveMap
+    mat.emissive.setHex(0xffffff)
+  }
+  cache.set(key, mat)
+  return mat
+}
+
 /** Bóng đổ giả dưới chân nhân vật — rẻ hơn nhiều so với shadow map cho vật nhỏ. */
 export function blobShadowMaterial(): THREE.MeshBasicMaterial {
   const key = 'blob'

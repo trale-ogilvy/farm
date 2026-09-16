@@ -144,20 +144,43 @@ export function bakePart(
   opts: { outline?: boolean } = {},
 ): THREE.BufferGeometry {
   const geo = part.geometry.clone()
+  center(geo)
+  geo.scale(scale, scale, scale)
+  const merged = mergeSimple([paintPart(geo, part, color)])
+  if (opts.outline === false) merged.userData.noOutline = true
+  return merged
+}
+
+/**
+ * Nướng NGUYÊN model (mọi mesh trong file) thành một geometry, căn giữa theo hộp
+ * bao chung chứ không theo từng mảnh — thùng gỗ có thân, đinh, ván rời nhau
+ * mà căn từng mảnh thì cả ba chồng lên một chỗ. Dùng cho prop và trang xem
+ * asset; cây trồng vẫn đi qua `bakePart` vì mỗi giai đoạn là một mesh.
+ */
+export function bakeModel(parts: GltfPart[], scale: number, opts: { outline?: boolean } = {}): THREE.BufferGeometry {
+  const merged = mergeSimple(parts.map((part) => paintPart(part.geometry.clone(), part)))
+  center(merged)
+  merged.scale(scale, scale, scale)
+  if (opts.outline === false) merged.userData.noOutline = true
+  return merged
+}
+
+/** Căn giữa theo x/z; y giữ nguyên trừ khi cả model lơ lửng trên 0. */
+function center(geo: THREE.BufferGeometry): void {
   geo.computeBoundingBox()
   const box = geo.boundingBox!
   geo.translate(-(box.min.x + box.max.x) / 2, box.min.y > 0 ? -box.min.y : 0, -(box.min.z + box.max.z) / 2)
-  geo.scale(scale, scale, scale)
+}
 
+/** Tô màu vào vertex rồi ép normal phẳng. `color` có thì tô phẳng, không thì lấy từ model. */
+function paintPart(geo: THREE.BufferGeometry, part: GltfPart, color?: number): THREE.BufferGeometry {
   const painted =
     color !== undefined || !part.map ? paint(geo, color ?? part.color) : paintFromTexture(geo, part.map, part.color)
   // Model ngoài thường dùng normal mượt; toon 2 bậc cần normal phẳng theo mặt
   // thì mảng sáng/tối mới ra hình khối, nếu không bề mặt bị loang lổ.
   const flat = painted.index ? painted.toNonIndexed() : painted
   flat.computeVertexNormals()
-  const merged = mergeSimple([flat])
-  if (opts.outline === false) merged.userData.noOutline = true
-  return merged
+  return flat
 }
 
 /** Bề ngang lớn nhất (theo x hoặc z) của một mesh, để tính tỉ lệ vừa ô. */

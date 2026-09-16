@@ -24,10 +24,18 @@ function outlineMaterial(thickness: number): THREE.ShaderMaterial {
     // Không tự khai báo `instanceMatrix` hay `USE_INSTANCING`: three tự chèn cả
     // hai khi vật thể là InstancedMesh. Khai báo thêm sẽ trùng và shader không
     // biên dịch được. Cùng một material dùng được cho cả hai loại mesh.
+    // Các chunk skinning chỉ nở ra khi three bật USE_SKINNING (mesh là
+    // SkinnedMesh); với mesh thường chúng rỗng, nên một shader dùng cho cả ba.
     vertexShader: `
       uniform float uThickness;
+      #include <skinning_pars_vertex>
       void main() {
-        vec3 inflated = position + normalize(normal) * uThickness;
+        vec3 objectNormal = normalize(normal);
+        vec3 transformed = position;
+        #include <skinbase_vertex>
+        #include <skinnormal_vertex>
+        #include <skinning_vertex>
+        vec3 inflated = transformed + normalize(objectNormal) * uThickness;
         #ifdef USE_INSTANCING
           vec4 mv = modelViewMatrix * instanceMatrix * vec4(inflated, 1.0);
         #else
@@ -70,13 +78,27 @@ export function addOutlines(root: THREE.Object3D, thickness = 0.018): void {
   })
 
   for (const mesh of targets) {
-    const shell = new THREE.Mesh(mesh.geometry, material(thickness))
+    const shell = shellFor(mesh, material(thickness))
     shell.userData.isOutline = true
     shell.castShadow = false
     shell.receiveShadow = false
     shell.renderOrder = (mesh.renderOrder ?? 0) - 1
     mesh.add(shell)
   }
+}
+
+/**
+ * Vỏ viền cùng loại với mesh gốc: mesh có xương thì vỏ cũng phải là SkinnedMesh
+ * bind vào cùng skeleton, nếu không nó đứng im ở tư thế bind trong khi con vật
+ * đang chạy.
+ */
+function shellFor(mesh: THREE.Mesh, mat: THREE.Material): THREE.Mesh {
+  const skinned = mesh as THREE.SkinnedMesh
+  if (!skinned.isSkinnedMesh) return new THREE.Mesh(mesh.geometry, mat)
+  const shell = new THREE.SkinnedMesh(mesh.geometry, mat)
+  shell.bind(skinned.skeleton, skinned.bindMatrix)
+  shell.frustumCulled = false
+  return shell
 }
 
 /**

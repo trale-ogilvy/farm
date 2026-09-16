@@ -959,7 +959,11 @@ export class Engine {
       : defaultQuickSlots()
     const tool = snap.player.tool
     this.player.setTool(tool && TOOL_ORDER.includes(tool) ? tool : null)
-    this.pets.loadFrom(snap.pets)
+    // Chỉ khôi phục pet đã bắt. Đàn hoang thả lại mới mỗi lần vào game: chúng
+    // không thuộc về ai, và giữ nguyên từ save thì đảo cứ mãi 9 con cũ, loài
+    // thêm sau không bao giờ có chỗ để xuất hiện.
+    this.pets.loadFrom(snap.pets.filter((p) => !p.wild))
+    this.pets.spawnWild(7)
 
     // Cây vẫn lớn khi người chơi offline, nhưng ở mức chậm (xem CropSystem).
     const credited = this.creditElapsed(Math.max(0, Date.now() - snap.savedAt))

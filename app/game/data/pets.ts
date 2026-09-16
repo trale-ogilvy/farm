@@ -1,8 +1,9 @@
 import type { PetDef } from '../types'
 
 /**
- * Pet được dựng hoàn toàn bằng code (không cần file model), nên mỗi def chỉ là
- * vài tham số hình dáng + màu. Muốn thêm loài mới chỉ cần thêm một entry.
+ * Hai loại pet: loài dựng bằng code (chỉ cần vài tham số hình dáng + màu) và
+ * loài có `model` glTF (xem `render/models/petModels.ts`) — loài này vẫn khai
+ * đủ hình dáng/màu để hiện tạm bằng khối trong lúc model chưa tải xong.
  */
 export const PETS: Record<string, PetDef> = {
   chippo: {
@@ -69,6 +70,124 @@ export const PETS: Record<string, PetDef> = {
     scale: 1.0,
     body: 'tall',
     ears: 'horn',
+  },
+
+  // --- Pet vẽ bằng model glTF. Màu/dáng dưới đây là bản khối dự phòng. ---
+  // `speed` = tốc độ tự nhiên của clip Walk × 1.4 (PetView đo sải chân lúc tải
+  // model, xem log dev "[pet] ..."): pet đi bộ, timeScale bù 1.4× nên chân
+  // không trượt; bỏ chạy ×1.5 thì tự chuyển sang Run vì gần tốc độ đó hơn.
+  // Tăng speed quá ~2× Walk là PetView chuyển Run; quá 2.2× Run là lại trượt.
+  frog: {
+    id: 'frog',
+    name: 'Ếch',
+    rarity: 'common',
+    skills: ['water', 'follow'],
+    catchDifficulty: 0.2,
+    speed: 0.5,
+    bodyColor: 0x7cb85c,
+    bellyColor: 0xe6f0c8,
+    scale: 0.7,
+    body: 'round',
+    ears: 'none',
+    model: 'frog',
+  },
+  chillet: {
+    id: 'chillet',
+    name: 'Chillet',
+    rarity: 'common',
+    skills: ['gather', 'follow'],
+    catchDifficulty: 0.3,
+    speed: 0.7,
+    bodyColor: 0xf3e9d6,
+    bellyColor: 0xcfe9f5,
+    scale: 0.9,
+    body: 'long',
+    ears: 'long',
+    model: 'chillet',
+  },
+  caprity: {
+    id: 'caprity',
+    name: 'Caprity',
+    rarity: 'common',
+    skills: ['harvest', 'follow'],
+    catchDifficulty: 0.3,
+    speed: 0.27,
+    bodyColor: 0xd9c9a8,
+    bellyColor: 0xf0e6d2,
+    scale: 1.0,
+    body: 'long',
+    ears: 'horn',
+    model: 'caprity',
+  },
+  direhowl: {
+    id: 'direhowl',
+    name: 'Direhowl',
+    rarity: 'uncommon',
+    skills: ['gather', 'follow'],
+    catchDifficulty: 0.5,
+    speed: 0.45,
+    bodyColor: 0x8b7a6a,
+    bellyColor: 0xe0d6c8,
+    scale: 0.95,
+    body: 'long',
+    ears: 'long',
+    model: 'direhowl',
+  },
+  univolt: {
+    id: 'univolt',
+    name: 'Univolt',
+    rarity: 'uncommon',
+    skills: ['gather', 'harvest', 'follow'],
+    catchDifficulty: 0.55,
+    speed: 0.34,
+    bodyColor: 0x4a5e8a,
+    bellyColor: 0xf2f2f2,
+    scale: 1.1,
+    body: 'long',
+    ears: 'horn',
+    model: 'univolt',
+  },
+  lunaris: {
+    id: 'lunaris',
+    name: 'Lunaris',
+    rarity: 'uncommon',
+    skills: ['water', 'harvest', 'follow'],
+    catchDifficulty: 0.5,
+    speed: 0.6,
+    bodyColor: 0xc8c0e8,
+    bellyColor: 0xf4f0ff,
+    scale: 0.95,
+    body: 'tall',
+    ears: 'none',
+    model: 'lunaris',
+  },
+  katress: {
+    id: 'katress',
+    name: 'Katress',
+    rarity: 'rare',
+    skills: ['water', 'harvest', 'follow'],
+    catchDifficulty: 0.7,
+    speed: 0.45,
+    bodyColor: 0x6b5a9e,
+    bellyColor: 0xf0d8e8,
+    scale: 0.95,
+    body: 'tall',
+    ears: 'long',
+    model: 'katress',
+  },
+  mossanda: {
+    id: 'mossanda',
+    name: 'Mossanda',
+    rarity: 'rare',
+    skills: ['water', 'harvest', 'gather', 'follow'],
+    catchDifficulty: 0.75,
+    speed: 0.2,
+    bodyColor: 0x5f8f5a,
+    bellyColor: 0xe9e3c9,
+    scale: 1.3,
+    body: 'round',
+    ears: 'none',
+    model: 'mossanda',
   },
 }
 

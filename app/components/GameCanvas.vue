@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { Engine } from '~/game/core/Engine'
+import { PETS, PET_IDS } from '~/game/data/pets'
 import { LOCAL_SAVE_KEY, SaveManager } from '~/game/save/SaveManager'
 import { useGameStore } from '~/composables/useGameStore'
 
@@ -64,6 +65,15 @@ onMounted(async () => {
     // Cửa sau để debug trong console và cho test tự động: chỉ có ở bản dev.
     if (import.meta.dev) {
       ;(window as unknown as Record<string, unknown>).__farm = engine
+      // `?pets=katress,frog` thả các loài đó quanh nhân vật để xem model ngay;
+      // `?pets=all` thả mỗi loài một con. Đông thì rải rộng ra cho khỏi chồng.
+      const raw = new URLSearchParams(location.search).get('pets')
+      const ids = raw === 'all' ? PET_IDS : (raw?.split(',').filter(Boolean) ?? [])
+      const radius = 1.5 + ids.length * 0.45
+      for (const id of ids) {
+        if (!PETS[id]) console.warn(`[pets] không có loài "${id}"`)
+        else engine.pets.spawnNear(id, engine.player.state.x, engine.player.state.z, radius)
+      }
     }
 
     autosaveTimer = setInterval(persist, 30_000)

@@ -5,8 +5,8 @@ import type { Player } from '../entities/Player'
 import type { JobKind, Pet, Tile } from '../types'
 import { petDef, rollWildPetId } from '../data/pets'
 import { cropDef, isHarvestable } from '../data/crops'
-import { animateWalk, buildPetRig, type Rig } from '../render/models/character'
-import { setOutlineHighlight } from '../render/Outline'
+import { PetView } from '../render/PetView'
+import type { PetAnim } from '../render/models/petModels'
 import type { HighlightTone } from '../render/TargetHighlight'
 import { WET_DURATION } from './CropSystem'
 import { addItem } from './FarmActions'
@@ -25,8 +25,22 @@ const STAMINA_PER_JOB = 3.5
 /** Thể lực hồi mỗi giây khi nghỉ. */
 const STAMINA_REGEN = 12
 
+/** Trạng thái AI → hoạt ảnh. Bỏ chạy thì chạy, còn lại cứ đang di chuyển là đi. */
+function animFor(pet: Pet, moved: boolean): PetAnim {
+  switch (pet.state) {
+    case 'work':
+      return 'work'
+    case 'rest':
+      return 'rest'
+    case 'stunned':
+      return 'stunned'
+    default:
+      return moved ? (pet.state === 'flee' ? 'run' : 'walk') : 'idle'
+  }
+}
+
 interface PetRuntime {
-  rig: Rig
+  view: PetView
   phase: number
   retargetAt: number
   stuckFor: number
@@ -61,11 +75,11 @@ export class PetSystem {
 
   add(pet: Pet): Pet {
     this.pets.push(pet)
-    const rig = buildPetRig(petDef(pet.defId))
-    rig.root.position.set(pet.x, 0, pet.z)
-    this.layer.add(rig.root)
+    const view = new PetView(petDef(pet.defId))
+    view.root.position.set(pet.x, 0, pet.z)
+    this.layer.add(view.root)
     this.runtime.set(pet.uid, {
-      rig,
+      view,
       phase: this.rand() * 6.28,
       retargetAt: 0,
       stuckFor: 0,
@@ -82,7 +96,8 @@ export class PetSystem {
     this.pets.splice(i, 1)
     const rt = this.runtime.get(uid)
     if (rt) {
-      this.layer.remove(rt.rig.root)
+      this.layer.remove(rt.view.root)
+      rt.view.dispose()
       this.runtime.delete(uid)
     }
   }
@@ -136,6 +151,40 @@ export class PetSystem {
     }
   }
 
+  /**
+   * Thả một pet hoang của loài `defId` gần điểm (x, z) — công cụ dev để xem
+   * model trong world mà không phải đi tìm pet spawn ngẫu nhiên. Ô đích phải đi
+   * được; thử vài vòng quanh rồi bỏ cuộc.
+   */
+  spawnNear(defId: string, x: number, z: number, maxRadius = 3.5): Pet | null {
+    const def = petDef(defId)
+    for (let tries = 0; tries < 24; tries++) {
+      const a = this.rand() * Math.PI * 2
+      const r = 1.5 + this.rand() * (maxRadius - 1.5)
+      const spot = this.clampToMap(x + Math.cos(a) * r, z + Math.sin(a) * r)
+      if (!this.grid.isWalkable(Math.round(spot.x), Math.round(spot.z))) continue
+      return this.add({
+        uid: this.newUid(),
+        defId,
+        name: def.name,
+        x: spot.x,
+        z: spot.z,
+        facing: this.rand() * 6.28,
+        state: 'wander',
+        job: 'idle',
+        targetTile: null,
+        wanderTo: null,
+        stamina: 100,
+        maxStamina: 100,
+        level: 1,
+        exp: 0,
+        wild: true,
+        timer: 0,
+      })
+    }
+    return null
+  }
+
   private findWildSpawn(): { x: number; z: number } | null {
     for (let tries = 0; tries < 60; tries++) {
       const x = Math.floor(this.rand() * this.grid.width)
@@ -183,19 +232,10 @@ export class PetSystem {
         rt.stuckFor = 0
       }
 
-      const speed01 = moved ? 1 : 0
-      rt.phase += dts * (7 + speed01 * 4)
-      rt.rig.root.position.set(pet.x, this.grid.groundY(pet.x, pet.z), pet.z)
-      rt.rig.root.rotation.y = pet.facing
-      animateWalk(rt.rig, rt.phase, speed01, t + rt.phase)
-
-      // Nhấp nhô nhẹ khi đang làm việc để thấy rõ pet đang "bận".
-      if (pet.state === 'work') {
-        rt.rig.bob.position.y = Math.abs(Math.sin(t * 9)) * 0.09
-        rt.rig.bob.rotation.x = Math.sin(t * 9) * 0.2
-      } else {
-        rt.rig.bob.rotation.x = 0
-      }
+      rt.phase += dts * (moved ? 11 : 7)
+      rt.view.root.position.set(pet.x, this.grid.groundY(pet.x, pet.z), pet.z)
+      rt.view.root.rotation.y = pet.facing
+      rt.view.update(animFor(pet, moved), dt, rt.phase, t + rt.phase, moved ? this.speedOf(pet) : 0)
     }
 
     return worldChanged
@@ -379,8 +419,7 @@ export class PetSystem {
   private steer(pet: Pet, dts: number, _now: number): boolean {
     if (!pet.wanderTo || pet.state === 'work' || pet.state === 'rest') return false
 
-    const def = petDef(pet.defId)
-    const speed = def.speed * (pet.state === 'flee' ? 1.5 : 1)
+    const speed = this.speedOf(pet)
     const dx = pet.wanderTo.x - pet.x
     const dz = pet.wanderTo.z - pet.z
     const dist = Math.hypot(dx, dz)
@@ -419,6 +458,11 @@ export class PetSystem {
     return true
   }
 
+  /** Tốc độ hiện tại (ô/giây): bỏ chạy thì nhanh gấp rưỡi. */
+  private speedOf(pet: Pet): number {
+    return petDef(pet.defId).speed * (pet.state === 'flee' ? 1.5 : 1)
+  }
+
   private arrived(pet: Pet, target: { x: number; z: number }): boolean {
     return Math.hypot(pet.x - target.x, pet.z - target.z) < ARRIVE_EPS + 0.55
   }
@@ -444,9 +488,9 @@ export class PetSystem {
   setHighlight(uid: string | null, tone: HighlightTone = 'ok'): void {
     if (uid === this.highlighted && tone === this.highlightTone) return
     const prev = this.highlighted ? this.runtime.get(this.highlighted) : null
-    if (prev) setOutlineHighlight(prev.rig.root, null)
+    if (prev) prev.view.setHighlight(null)
     const next = uid ? this.runtime.get(uid) : null
-    if (next) setOutlineHighlight(next.rig.root, tone)
+    if (next) next.view.setHighlight(tone)
     this.highlighted = next ? uid : null
     this.highlightTone = tone
   }
